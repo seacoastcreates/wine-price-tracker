@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from app.db import query
 
-app = FastAPI(title="Wine Price Tracker API", version="0.2.0")
+app = FastAPI(title="Wine Price Tracker API", version="0.3.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(","),
@@ -21,11 +21,12 @@ SOURCE_NAME = "Pennsylvania Liquor Control Board quarterly price lists"
 
 class WineSummary(BaseModel):
     slug: str
+    family: str
     name: str
+    vintage: str
     size: str
     style: str
     tier: str
-    latest_vintage: str | None
     is_featured: bool
     is_active: bool
     latest_date: date | None
@@ -51,7 +52,6 @@ class PricePoint(BaseModel):
     regular_price: float
     promo_price: float | None
     promo_type: str | None
-    vintage: str | None
 
 
 class ForecastPoint(BaseModel):
@@ -97,8 +97,9 @@ filtered AS (
       AND (NOT :featured OR w.is_featured)
       AND (NOT :active OR w.is_active)
       AND (CAST(:slug AS TEXT) IS NULL OR w.slug = :slug)
+      AND (CAST(:family AS TEXT) IS NULL OR w.family = :family)
 )
-SELECT f.slug, f.name, f.size, f.style, f.tier, f.latest_vintage, f.is_featured, f.is_active,
+SELECT f.slug, f.family, f.name, f.vintage, f.size, f.style, f.tier, f.is_featured, f.is_active,
        cur.observed_on AS latest_date, cur.regular_price::float AS regular_price,
        cur.promo_price::float AS promo_price, cur.promo_type,
        hist.first_date,
@@ -136,7 +137,7 @@ SORTS = {
 
 
 def summaries(**params) -> list[dict]:
-    defaults = dict(style=None, tier=None, q=None, featured=False, active=False, slug=None)
+    defaults = dict(style=None, tier=None, q=None, featured=False, active=False, slug=None, family=None)
     return query(SUMMARY_SQL + params.pop("tail", ""), **{**defaults, **params})
 
 
@@ -169,12 +170,21 @@ def get_wine(slug: str):
     return rows[0]
 
 
+@app.get("/wines/{slug}/vintages", response_model=list[WineSummary])
+def get_vintages(slug: str):
+    """Every vintage of the same product and size, newest first (including this one)."""
+    family = query("SELECT family FROM wines WHERE slug = :slug", slug=slug)
+    if not family:
+        raise HTTPException(404, "Wine not found")
+    return summaries(family=family[0]["family"], tail=" ORDER BY f.vintage = 'NV', f.vintage DESC")
+
+
 @app.get("/wines/{slug}/prices", response_model=list[PricePoint])
 def get_prices(slug: str):
     rows = query(
         """
         SELECT p.observed_on AS date, p.regular_price::float AS regular_price,
-               p.promo_price::float AS promo_price, p.promo_type, p.vintage
+               p.promo_price::float AS promo_price, p.promo_type
         FROM price_observations p JOIN wines w ON w.id = p.wine_id
         WHERE w.slug = :slug
         ORDER BY p.observed_on

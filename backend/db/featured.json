@@ -5,8 +5,8 @@
    "cabernet sauvignon"
   ],
   "exclude": [
-   "reserve",
-   "craftsman"
+   "craftsman",
+   "reserve"
   ]
  },
  {
@@ -50,13 +50,13 @@
    "red"
   ],
   "exclude": [
-   "warden",
-   "bride",
-   "snoop",
-   "martha",
-   "uprising",
    "banished",
-   "sauvage"
+   "bride",
+   "martha",
+   "sauvage",
+   "snoop",
+   "uprising",
+   "warden"
   ]
  },
  {
@@ -79,6 +79,9 @@
   "match": [
    "cloudy bay",
    "sauvignon blanc"
+  ],
+  "exclude": [
+   "te koko"
   ]
  },
  {
@@ -114,24 +117,23 @@
    "red"
   ],
   "exclude": [
-   "unshackled",
    "blindfold",
-   "saldo",
    "cuttings",
    "eternally",
-   "headlock"
-  ],
-  "merge_all": true
+   "headlock",
+   "saldo",
+   "unshackled"
+  ]
  },
  {
   "match": [
    "veuve clicquot",
-   "brut"
+   "yellow label"
   ],
   "exclude": [
-   "rose",
-   "grande dame",
-   "extra"
+   "extra",
+   "gift",
+   "rose"
   ]
  },
  {
@@ -141,9 +143,9 @@
    "brut"
   ],
   "exclude": [
-   "rose",
    "ice",
-   "nectar"
+   "nectar",
+   "rose"
   ]
  },
  {
@@ -169,8 +171,8 @@
    "dom perignon"
   ],
   "exclude": [
-   "rose",
-   "p2"
+   "p2",
+   "rose"
   ]
  },
  {
@@ -185,6 +187,8 @@
    "cristal"
   ],
   "exclude": [
+   "box",
+   "gift",
    "rose"
   ]
  },
@@ -199,8 +203,7 @@
   ],
   "exclude": [
    "overture"
-  ],
-  "merge_all": true
+  ]
  },
  {
   "match": [
@@ -219,8 +222,7 @@
   "match": [
    "penfolds",
    "grange"
-  ],
-  "merge_all": true
+  ]
  },
  {
   "match": [

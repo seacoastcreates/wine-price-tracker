@@ -44,12 +44,18 @@ class UnionFind:
         self.parent[self.find(a)] = self.find(b)
 
 
+def vintage_of(r: dict) -> str:
+    """The row's vintage year, or 'NV' when none is printed (true non-vintage wines, and
+    wines whose vintage the PLCB does not record)."""
+    return r["vintage"] if r["vintage"].isdigit() else "NV"
+
+
 def build() -> tuple[dict, list[dict]]:
     """Returns wines keyed by slug, and one observation per (wine, report date).
 
-    A wine is a connected group of rows that share either a PLCB code (same SKU, even when the
-    description was rewritten in the Oct 2023 format change) or a normalized name at the same
-    size (same wine, new vintage code)."""
+    A wine is one vintage of one product at one bottle size: different vintages are different
+    wines. Rows are joined when they share a PLCB code (codes are vintage-specific, and survive the
+    Oct 2023 description rewrite) or a normalized name, always within the same vintage and size."""
     rows = []
     with PRICES_CSV.open() as f:
         for r in csv.DictReader(f):
@@ -58,21 +64,15 @@ def build() -> tuple[dict, list[dict]]:
 
     uf = UnionFind()
     for r in rows:
-        uf.union(f"code:{r['code']}|{r['size']}", f"name:{product_key(r['description'], r['size'])}")
-    # Featured wines flagged merge_all have been renamed more than once; join every variant.
-    for i, item in enumerate(json.loads(FEATURED.read_text())):
-        if item.get("merge_all"):
-            for r in rows:
-                if r["size"] == "750 ML" and matches(r["description"], item):
-                    uf.union(f"code:{r['code']}|{r['size']}", f"featured:{i}")
-    group = {id(r): uf.find(f"code:{r['code']}|{r['size']}") for r in rows}
+        v = vintage_of(r)
+        uf.union(f"code:{r['code']}|{r['size']}|{v}", f"name:{product_key(r['description'], r['size'])}|{v}")
+    group = {id(r): uf.find(f"code:{r['code']}|{r['size']}|{vintage_of(r)}") for r in rows}
 
     per_report: dict[tuple[str, str], dict] = {}
     for r in rows:
         key = (group[id(r)], r["report_date"])
-        # When several vintages are listed at once, follow the newest one.
-        cur = per_report.get(key)
-        if cur is None or vintage_rank(r["vintage"]) > vintage_rank(cur["vintage"]):
+        # The same wine listed twice in one report (rare): keep the lowest code for stability.
+        if key not in per_report or int(r["code"]) < int(per_report[key]["code"]):
             per_report[key] = r
 
     by_group: dict[str, list[dict]] = defaultdict(list)
@@ -84,15 +84,18 @@ def build() -> tuple[dict, list[dict]]:
     for obs in by_group.values():
         obs.sort(key=lambda r: r["report_date"])
         last = obs[-1]
-        slug = product_key(last["description"], last["size"])
+        vintage = vintage_of(last)
+        family = product_key(last["description"], last["size"])
+        slug = f"{family}-{vintage.lower()}"
         observations += [dict(r, slug=slug) for r in obs]
         wines[slug] = {
             "slug": slug,
+            "family": family,
             "name": display_name(last["description"]),
+            "vintage": vintage,
             "size": last["size"],
             "style": style_of(last["description"]),
             "tier": tier_of(float(last["regular_price"])),
-            "latest_vintage": last["vintage"] or None,
             "source_codes": sorted({r["code"] for r in obs}),
             "is_active": last["report_date"] == latest_report,
         }
@@ -105,7 +108,8 @@ def matches(name: str, item: dict) -> bool:
 
 
 def featured_slugs(wines: dict, obs: list[dict]) -> set[str]:
-    """Match each featured wine to the 750 ML product with the longest history."""
+    """Match each featured wine to its current 750 ML release: listed today, newest vintage,
+    then longest history."""
     quarters = defaultdict(int)
     for r in obs:
         quarters[r["slug"]] += 1
@@ -113,7 +117,7 @@ def featured_slugs(wines: dict, obs: list[dict]) -> set[str]:
     for item in json.loads(FEATURED.read_text()):
         candidates = [s for s, w in wines.items() if w["size"] == "750 ML" and matches(w["name"], item)]
         if candidates:
-            chosen.add(max(candidates, key=lambda s: (wines[s]["is_active"], quarters[s])))
+            chosen.add(max(candidates, key=lambda s: (wines[s]["is_active"], vintage_rank(wines[s]["vintage"]), quarters[s])))
         else:
             print(f"  featured wine not found: {item['match']}")
     return chosen
@@ -129,11 +133,11 @@ def main() -> None:
         conn.execute(
             text(
                 """
-                INSERT INTO wines (slug, name, size, style, tier, latest_vintage, source_codes, is_featured, is_active)
-                VALUES (:slug, :name, :size, :style, :tier, :latest_vintage, :source_codes, :is_featured, :is_active)
+                INSERT INTO wines (slug, family, name, vintage, size, style, tier, source_codes, is_featured, is_active)
+                VALUES (:slug, :family, :name, :vintage, :size, :style, :tier, :source_codes, :is_featured, :is_active)
                 ON CONFLICT (slug) DO UPDATE SET
-                    name = EXCLUDED.name, size = EXCLUDED.size, style = EXCLUDED.style, tier = EXCLUDED.tier,
-                    latest_vintage = EXCLUDED.latest_vintage, source_codes = EXCLUDED.source_codes,
+                    family = EXCLUDED.family, name = EXCLUDED.name, vintage = EXCLUDED.vintage, size = EXCLUDED.size,
+                    style = EXCLUDED.style, tier = EXCLUDED.tier, source_codes = EXCLUDED.source_codes,
                     is_featured = EXCLUDED.is_featured, is_active = EXCLUDED.is_active
                 """
             ),

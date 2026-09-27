@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { api, type ListParams } from "@/lib/api";
+import { api, wineTitle, type ListParams } from "@/lib/api";
 import { Chance, Delta, ShelfPrice, SourceNote, StatTile } from "@/components/ui";
 
 const STYLES = ["red", "white", "rose", "sparkling", "dessert"];
@@ -133,11 +133,11 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               <tr key={w.slug} className="border-b border-line last:border-0 hover:bg-page">
                 <td className="px-4 py-3">
                   <Link href={`/wines/${w.slug}`} className="font-medium hover:underline">
-                    {w.name}
+                    {wineTitle(w)}
                   </Link>
                   <div className="text-xs text-muted">
                     <span className="capitalize">{w.style === "rose" ? "rosé" : w.style}</span> · {w.size.replace(" ML", " ml")}
-                    {w.latest_vintage && w.latest_vintage !== "NV" ? ` · ${w.latest_vintage} vintage` : ""}
+                    {w.vintage === "NV" ? " · non-vintage or vintage not listed" : ""}
                   </div>
                 </td>
                 <td className="px-4 py-3 text-right font-medium"><ShelfPrice wine={w} /></td>

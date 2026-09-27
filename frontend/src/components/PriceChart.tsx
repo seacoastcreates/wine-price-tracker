@@ -11,7 +11,6 @@ type Row = {
   price?: number;
   promo?: number;
   promoType?: string | null;
-  vintage?: string | null;
   p50?: number;
   band?: [number, number];
   fc?: ForecastPoint;
@@ -44,7 +43,6 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: { paylo
     <div className="rounded-md border border-line bg-surface px-3 py-2 text-sm shadow-sm">
       <div className="mb-1 text-muted">
         {quarterLabel(r.date)}
-        {r.vintage && r.vintage !== "NV" ? ` · ${r.vintage} vintage` : ""}
       </div>
       {r.price != null && <div className="tabular">List price <strong>{usd(r.price)}</strong></div>}
       {r.promo != null && (
@@ -79,7 +77,6 @@ export default function PriceChart({ prices, forecast }: { prices: PricePoint[];
         price: p.regular_price,
         promo: p.promo_price ?? undefined,
         promoType: p.promo_type,
-        vintage: p.vintage,
       }));
     const anchor = hist.at(-1);
     // Anchor the forecast to the latest list price so the two lines connect.

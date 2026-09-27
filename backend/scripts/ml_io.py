@@ -17,7 +17,7 @@ from app.db import get_engine
 def export(out_csv: str) -> None:
     sql = """
         SELECT p.wine_id, p.observed_on AS date, p.regular_price::float AS price,
-               p.promo_price::float AS promo_price, p.promo_type, w.style, w.tier
+               p.promo_price::float AS promo_price, p.promo_type, w.style, w.tier, w.vintage
         FROM price_observations p JOIN wines w ON w.id = p.wine_id
         ORDER BY p.wine_id, p.observed_on
     """

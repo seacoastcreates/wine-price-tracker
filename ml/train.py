@@ -3,8 +3,9 @@
 Runs locally or as a SageMaker training job (SKLearn framework container). In SageMaker the
 input CSV arrives in SM_CHANNEL_TRAIN and everything written to SM_MODEL_DIR is uploaded to S3.
 
-Input CSV columns: wine_id, date, price, promo_price, promo_type, style, tier
+Input CSV columns: wine_id, date, price, promo_price, promo_type, style, tier, vintage
 (one row per wine per price list; dates are the shared price-list dates, e.g. quarterly).
+A wine is one vintage of one product; vintage is a year or 'NV'.
 Outputs: forecasts.csv, metrics.json, model.joblib.
 
 List prices are sticky (in PLCB data ~95% are unchanged quarter to quarter), so the main output
@@ -34,7 +35,8 @@ from sklearn.metrics import average_precision_score, brier_score_loss, roc_auc_s
 QUANTILES = (0.1, 0.5, 0.9)
 LAGS = (1, 2, 4, 8)
 FEATURES = [*(f"lr_{k}" for k in LAGS), "vol_4", "changes_8", "periods_since_change", "age", "log_price",
-            "on_sale", "on_clearance", "discount", "h", "target_period_of_year", "style", "tier"]
+            "on_sale", "on_clearance", "discount", "vintage_age", "is_nv", "h", "target_period_of_year",
+            "style", "tier"]
 CATEGORICAL = ["style", "tier"]
 MOVE = np.log(1.005)  # a list-price change smaller than 0.5% counts as "no change"
 
@@ -47,6 +49,7 @@ def build_origins(df: pd.DataFrame, periods: pd.DatetimeIndex) -> pd.DataFrame:
     per_year = max(1, round(len(periods) / ((periods[-1] - periods[0]).days / 365.25 + 1e-9)))
     grid = pd.Series(np.arange(len(periods)), index=periods)
     frames = []
+    df_vintage = df.groupby("wine_id")["vintage"].first().to_dict() if "vintage" in df else {}
     for wine_id, g in df.groupby("wine_id"):
         g = g.set_index("date").reindex(periods)
         listed = g["price"].notna()
@@ -70,6 +73,10 @@ def build_origins(df: pd.DataFrame, periods: pd.DatetimeIndex) -> pd.DataFrame:
         f["on_sale"] = (g["promo_type"] == "sale").astype(float)
         f["on_clearance"] = (g["promo_type"] == "clearance").astype(float)
         f["discount"] = (1 - g["promo_price"] / g["price"]).fillna(0.0)
+        # Years since the vintage: older vintages get marked up as they age, or cleared out.
+        vintage = pd.to_numeric(df_vintage.get(wine_id), errors="coerce")
+        f["vintage_age"] = periods.year - vintage if pd.notna(vintage) else np.nan
+        f["is_nv"] = float(pd.isna(vintage))
         f["style"] = g["style"].ffill().bfill()
         f["tier"] = g["tier"].ffill().bfill()
         f["t"] = grid.to_numpy()
@@ -287,7 +294,7 @@ def main() -> None:
 
     in_path = Path(args.input)
     csv = in_path if in_path.is_file() else next(in_path.glob("*.csv"))
-    df = pd.read_csv(csv, parse_dates=["date"])
+    df = pd.read_csv(csv, parse_dates=["date"], dtype={"vintage": str})
     out = Path(args.output)
     out.mkdir(parents=True, exist_ok=True)
 

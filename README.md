@@ -1,6 +1,7 @@
 # Cellar Index: wine price tracker and forecaster
 
-Ten years of **real, official shelf prices** for ~25,000 wines, including 8,400 on sale today. Each wine gets a model-based
+Ten years of **real, official shelf prices** for ~31,000 wines (each vintage counted separately), including about 10,000
+on sale today. Each wine gets a model-based
 estimate of its chance of a price rise or cut over the next year.
 
 | Layer | Tech |
@@ -23,18 +24,23 @@ Pipeline (`backend/ingest/`):
    extra lines. 508k rows are parsed, with 39 left unparsed.
 2. **Classify** (`classify.py`). The lists have no category column, so keyword rules separate wine from spirits and accessories
    and assign a style (red, white, rosé, sparkling or dessert).
-3. **Link** (`load.py`). A union-find joins rows into one wine when they share a PLCB code (the same product under a rewritten
-   description) or a normalized name at the same size (the same wine in a new vintage). A few famous wines that were renamed
-   several times are joined through `db/featured.json`.
+3. **Link** (`load.py`). **A wine is one vintage of one product at one bottle size**, so Caymus 2019 and Caymus 2020 are
+   different wines, each with its own price history. Within a vintage, a union-find joins rows that share a PLCB code (codes are
+   vintage-specific and survive the October 2023 description rewrite) or a normalized name. Vintages of the same product are
+   grouped as a `family`, so each wine page lists its other vintages. About 30% of rows print no vintage. These are true
+   non-vintage wines (such as Champagne NV) or everyday wines whose vintage the PLCB doesn't record, and each is tracked as
+   one "NV" series.
 
 ## Model
-Wine list prices are sticky: **about 4% change in a given quarter**. When a price rises, the typical increase is about 7%.
+Wine list prices are sticky: **about 3% of wines change list price in a given quarter**. When vintages were merged, this looked
+like 4.4%, because a new vintage arriving at a new price counted as a price change. When a price rises, the typical increase is
+about 7%.
 There are also statewide shocks; in April 2023, 31% of wines rose at once. Predicting "price stays the same" is almost always
 right, so the useful question is **which wines are about to move**.
 
 - **Price-change classifier.** P(higher), P(lower) and P(same) at 1–4 quarters ahead, with separate models for the typical
   size of a rise or a cut. Features include past changes, time since the last change, sale and clearance status, discount
-  depth, how long the wine has been listed, price level, style and tier. All models are global (one across every wine) and
+  depth, how long the wine has been listed, years since the vintage, price level, style and tier. All models are global (one across every wine) and
   predict each horizon directly.
 - **Calibration.** Probabilities are recalibrated with Platt scaling on the most recent quarters, and the p10/p90 price range
   uses conformalized quantile regression.
@@ -42,12 +48,12 @@ right, so the useful question is **which wines are about to move**.
 
 | Horizon | Rise AUC | Rise AP (base rate) | Cut AUC |
 |---|---|---|---|
-| 1 quarter | 0.79 | 0.058 (0.016) | 0.73 |
-| 4 quarters | 0.73 | 0.093 (0.044) | 0.62 |
+| 1 quarter | 0.89 | 0.068 (0.011) | 0.85 |
+| 4 quarters | 0.84 | 0.087 (0.026) | 0.84 |
 
-  The model ranks well: flagged wines are 2–4× more likely to change price than average. Absolute probabilities at 3–4
-  quarters run high (9% predicted vs 4.4% actual) because price rises slowed after 2024, and any recent calibration window
-  still overstates them. This non-stationarity is a known limitation.
+  The model ranks well: flagged wines are 3–6× more likely to change price than average. Absolute probabilities of a rise at
+  3–4 quarters run high (4.7% predicted vs 2.6% actual) because price rises slowed after 2024, and any recent calibration
+  window still overstates them. This non-stationarity is a known limitation.
 
 ## Run locally
 ```bash

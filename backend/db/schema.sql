@@ -1,14 +1,16 @@
 -- Wine Price Tracker schema (PostgreSQL 15+)
 
--- One row per wine product at a given bottle size, followed across vintages.
+-- One row per wine: one vintage of one product at one bottle size. Different vintages are
+-- different wines; `family` groups the vintages of the same product.
 CREATE TABLE IF NOT EXISTS wines (
     id             SERIAL PRIMARY KEY,
     slug           TEXT UNIQUE NOT NULL,
+    family         TEXT NOT NULL,
     name           TEXT NOT NULL,
+    vintage        TEXT NOT NULL,                  -- year, or 'NV' when none is printed
     size           TEXT NOT NULL,
     style          TEXT NOT NULL CHECK (style IN ('red', 'white', 'rose', 'sparkling', 'dessert')),
     tier           TEXT NOT NULL CHECK (tier IN ('everyday', 'premium', 'luxury')),
-    latest_vintage TEXT,
     source_codes   TEXT[] NOT NULL DEFAULT '{}',
     is_featured    BOOLEAN NOT NULL DEFAULT FALSE,
     is_active      BOOLEAN NOT NULL DEFAULT TRUE   -- listed in the most recent price list
@@ -58,4 +60,5 @@ CREATE TABLE IF NOT EXISTS forecasts (
     PRIMARY KEY (model_version, wine_id, target_date)
 );
 
-CREATE INDEX IF NOT EXISTS wines_name_trgm ON wines (lower(name));
+CREATE INDEX IF NOT EXISTS wines_name_lower ON wines (lower(name));
+CREATE INDEX IF NOT EXISTS wines_family ON wines (family);
