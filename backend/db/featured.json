@@ -1,0 +1,249 @@
+[
+ {
+  "match": [
+   "josh cellars",
+   "cabernet sauvignon"
+  ],
+  "exclude": [
+   "reserve",
+   "craftsman"
+  ]
+ },
+ {
+  "match": [
+   "kim crawford",
+   "sauvignon blanc"
+  ]
+ },
+ {
+  "match": [
+   "meiomi",
+   "pinot noir"
+  ]
+ },
+ {
+  "match": [
+   "santa margherita",
+   "pinot grigio"
+  ]
+ },
+ {
+  "match": [
+   "whispering angel"
+  ]
+ },
+ {
+  "match": [
+   "apothic red"
+  ]
+ },
+ {
+  "match": [
+   "kendall",
+   "vintner's reserve",
+   "chardonnay"
+  ]
+ },
+ {
+  "match": [
+   "19 crimes",
+   "red"
+  ],
+  "exclude": [
+   "warden",
+   "bride",
+   "snoop",
+   "martha",
+   "uprising",
+   "banished",
+   "sauvage"
+  ]
+ },
+ {
+  "match": [
+   "decoy",
+   "cabernet sauvignon"
+  ],
+  "exclude": [
+   "limited"
+  ]
+ },
+ {
+  "match": [
+   "la crema",
+   "sonoma coast",
+   "pinot noir"
+  ]
+ },
+ {
+  "match": [
+   "cloudy bay",
+   "sauvignon blanc"
+  ]
+ },
+ {
+  "match": [
+   "duckhorn",
+   "merlot",
+   "napa valley"
+  ],
+  "exclude": [
+   "three palms"
+  ]
+ },
+ {
+  "match": [
+   "caymus",
+   "cabernet sauvignon",
+   "napa valley"
+  ],
+  "exclude": [
+   "special selection",
+   "suisun"
+  ]
+ },
+ {
+  "match": [
+   "silver oak",
+   "alexander valley"
+  ]
+ },
+ {
+  "match": [
+   "prisoner",
+   "red"
+  ],
+  "exclude": [
+   "unshackled",
+   "blindfold",
+   "saldo",
+   "cuttings",
+   "eternally",
+   "headlock"
+  ],
+  "merge_all": true
+ },
+ {
+  "match": [
+   "veuve clicquot",
+   "brut"
+  ],
+  "exclude": [
+   "rose",
+   "grande dame",
+   "extra"
+  ]
+ },
+ {
+  "match": [
+   "moet",
+   "imperial",
+   "brut"
+  ],
+  "exclude": [
+   "rose",
+   "ice",
+   "nectar"
+  ]
+ },
+ {
+  "match": [
+   "jordan",
+   "cabernet sauvignon",
+   "alexander valley"
+  ]
+ },
+ {
+  "match": [
+   "stag's leap wine cellars",
+   "artemis"
+  ]
+ },
+ {
+  "match": [
+   "tignanello"
+  ]
+ },
+ {
+  "match": [
+   "dom perignon"
+  ],
+  "exclude": [
+   "rose",
+   "p2"
+  ]
+ },
+ {
+  "match": [
+   "krug",
+   "grande cuvee"
+  ]
+ },
+ {
+  "match": [
+   "roederer",
+   "cristal"
+  ],
+  "exclude": [
+   "rose"
+  ]
+ },
+ {
+  "match": [
+   "sassicaia"
+  ]
+ },
+ {
+  "match": [
+   "opus one"
+  ],
+  "exclude": [
+   "overture"
+  ],
+  "merge_all": true
+ },
+ {
+  "match": [
+   "yquem"
+  ]
+ },
+ {
+  "match": [
+   "chateau margaux"
+  ],
+  "exclude": [
+   "pavillon"
+  ]
+ },
+ {
+  "match": [
+   "penfolds",
+   "grange"
+  ],
+  "merge_all": true
+ },
+ {
+  "match": [
+   "barefoot",
+   "cabernet sauvignon"
+  ]
+ },
+ {
+  "match": [
+   "yellow tail",
+   "shiraz"
+  ]
+ },
+ {
+  "match": [
+   "bogle",
+   "old vine zinfandel"
+  ]
+ },
+ {
+  "match": [
+   "oyster bay",
+   "sauvignon blanc"
+  ]
+ }
+]

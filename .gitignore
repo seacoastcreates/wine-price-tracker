@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+ml/data/
+ml/artifacts/
+node_modules/
+.next/
+cdk.out/
+.env*
+.DS_Store
+data/
