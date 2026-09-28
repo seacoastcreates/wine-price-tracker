@@ -63,7 +63,7 @@ export default function WhatIf({ slug, listPrice, promoType }: { slug: string; l
   }
 
   return (
-    <section className="mt-6 rounded-lg border border-line bg-surface p-4">
+    <section className="mt-6 card p-4">
       <h2 className="font-semibold">What if?</h2>
       <p className="mb-4 text-sm text-ink-2">
         Change today&apos;s price or promotion and the model re-scores this wine live.
@@ -79,9 +79,7 @@ export default function WhatIf({ slug, listPrice, promoType }: { slug: string; l
                 key={p.value}
                 onClick={() => setPromo(p.value)}
                 aria-pressed={promo === p.value}
-                className={`rounded-md border px-3 py-1.5 text-sm ${
-                  promo === p.value ? "border-ink bg-ink text-page" : "border-line text-ink-2 hover:text-ink"
-                }`}
+                className={`segment ${promo === p.value ? "segment-active" : ""}`}
               >
                 {p.label}
               </button>
@@ -105,14 +103,14 @@ export default function WhatIf({ slug, listPrice, promoType }: { slug: string; l
             placeholder={listPrice.toFixed(2)}
             value={price}
             onChange={(e) => setPrice(e.target.value)}
-            className="w-28 rounded-md border border-line bg-page px-2 py-1.5"
+            className="field w-28"
           />
         </label>
 
         <button
           onClick={run}
           disabled={busy}
-          className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-page disabled:opacity-50"
+          className="btn-primary"
         >
           {busy ? "Running…" : "Run model"}
         </button>
@@ -123,7 +121,7 @@ export default function WhatIf({ slug, listPrice, promoType }: { slug: string; l
       {result && (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
-            <thead className="border-b border-line text-left text-ink-2">
+            <thead className="table-head border-b border-line text-left">
               <tr>
                 <th className="py-2 font-medium">By</th>
                 <th className="py-2 font-medium">Chance of a rise</th>

@@ -13,7 +13,7 @@ export function Delta({ pct }: { pct: number | null }) {
 
 export function SourceNote() {
   return (
-    <div className="mb-6 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-ink-2">
+    <aside className="mb-8 rounded-r-lg border-l-4 border-gold bg-surface-2 px-4 py-3 text-sm text-ink-2">
       <strong className="text-ink">Real prices:</strong> every price comes from the{" "}
       <a
         className="underline hover:text-ink"
@@ -22,14 +22,14 @@ export function SourceNote() {
         Pennsylvania Liquor Control Board&apos;s quarterly price lists
       </a>
       , the state-run retailer&apos;s official shelf prices, October 2016 to today. List prices exclude sales tax.
-    </div>
+    </aside>
   );
 }
 
 export function StatTile({ label, value, sub }: { label: string; value: React.ReactNode; sub?: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-line bg-surface p-4">
-      <div className="text-sm text-ink-2">{label}</div>
+    <div className="card p-5">
+      <div className="font-semibold">{label}</div>
       <div className="mt-1 text-2xl font-semibold">{value}</div>
       {sub && <div className="mt-1 text-sm text-ink-2">{sub}</div>}
     </div>
@@ -42,7 +42,7 @@ export function ShelfPrice({ wine }: { wine: Pick<WineSummary, "regular_price" |
     <span className="tabular">
       {usd(wine.promo_price)}{" "}
       <span className="text-xs text-muted line-through">{usd(wine.regular_price)}</span>{" "}
-      <span className="rounded bg-page px-1.5 py-0.5 text-xs text-ink-2">{wine.promo_type === "clearance" ? "Clearance" : "Sale"}</span>
+      <span className="badge">{wine.promo_type === "clearance" ? "Clearance" : "Sale"}</span>
     </span>
   );
 }
@@ -62,4 +62,14 @@ export function Chance({ p, tone }: { p: number | null; tone: "up" | "down" }) {
       <span className="tabular w-9 text-right">{pctVal < 1 ? "<1%" : `${pctVal}%`}</span>
     </span>
   );
+}
+
+/** Shelf price vs fair price: a deal or a premium only when outside the fair range. */
+export function FairValue({ wine }: { wine: Pick<WineSummary, "regular_price" | "fair_low" | "fair_high" | "value_pct"> }) {
+  if (wine.value_pct == null || wine.regular_price == null || wine.fair_low == null || wine.fair_high == null)
+    return <span className="text-muted">—</span>;
+  const pctAbs = Math.abs(Math.round(wine.value_pct));
+  if (wine.regular_price < wine.fair_low) return <span className="tabular whitespace-nowrap text-up">{pctAbs}% below</span>;
+  if (wine.regular_price > wine.fair_high) return <span className="tabular whitespace-nowrap text-ink-2">{pctAbs}% premium</span>;
+  return <span className="whitespace-nowrap text-ink-2">Fairly priced</span>;
 }

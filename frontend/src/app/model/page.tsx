@@ -57,14 +57,14 @@ function AblationTable({
 }) {
   const present = sets.filter((k) => run[k]);
   return (
-    <section className="mb-8 overflow-x-auto rounded-lg border border-line bg-surface">
+    <section className="mb-8 overflow-x-auto card">
       <h2 className="px-4 pt-4 font-semibold">{title}</h2>
       <p className="px-4 pb-3 text-sm text-ink-2">
         {intro} Cells show ranking skill (ROC AUC) on the holdout year; the number in brackets is how many real price
         moves the comparison contains.
       </p>
       <table className="tabular w-full min-w-[760px] text-sm">
-        <thead className="border-y border-line text-left text-ink-2">
+        <thead className="table-head border-y border-line text-left">
           <tr>
             <th className="px-4 py-2 font-medium">Comparison</th>
             {present.map((k) => (
@@ -107,7 +107,8 @@ export default async function ModelPage() {
 
   return (
     <>
-      <h1 className="text-3xl font-semibold tracking-tight">How the model works</h1>
+      <div className="eyebrow">Methods and results</div>
+      <h1 className="display mt-2 text-4xl font-semibold sm:text-5xl">How the model works</h1>
       <p className="mt-2 mb-6 max-w-3xl text-ink-2">
         Wine list prices rarely change, so the model predicts <em>whether</em> each wine&apos;s list price will rise or
         fall over the next four quarters, and by how much. One model is trained across all {m.series.toLocaleString()}{" "}
@@ -116,22 +117,38 @@ export default async function ModelPage() {
 
       <section className="mb-8 grid gap-3 sm:grid-cols-3">
         <StatTile label="Model version" value={<span className="text-base">{model.model_version}</span>} sub={`Data through ${m.data_through}`} />
-        <StatTile label="Wines whose list price changes in a quarter" value={`${m.share_price_changed_pct}%`} sub="The base rate the model must beat" />
-        <StatTile label="80% price range coverage" value={`${m.interval_80_coverage_pct}%`} sub="Share of real outcomes inside the forecast range" />
+        <StatTile
+          label="How often list prices change"
+          value={`${m.share_price_changed_pct}%`}
+          sub={`of wines get a new list price in a typical quarter. Guessing "no change" is right about ${Math.round(100 - m.share_price_changed_pct)}% of the time, so the model's job is to spot the few that will move.`}
+        />
+        <StatTile
+          label="How reliable the price ranges are"
+          value={`${m.interval_80_coverage_pct}%`}
+          sub={`of actual prices landed inside the forecast's 80% range. The target is 80%, so ${
+            m.interval_80_coverage_pct > 85
+              ? "the ranges are wider (more cautious) than they need to be."
+              : m.interval_80_coverage_pct < 75
+                ? "the ranges are too narrow."
+                : "the ranges are about right."
+          }`}
+        />
       </section>
 
-      <section className="mb-8 overflow-x-auto rounded-lg border border-line bg-surface">
+      <section className="mb-8 overflow-x-auto card">
         <h2 className="px-4 pt-4 font-semibold">Accuracy on the holdout year</h2>
         <p className="px-4 pb-3 text-sm text-ink-2">
-          ROC AUC measures how well the model ranks wines (0.5 is random guessing, 1.0 is perfect). Average precision is
-          compared with the base rate: how often a randomly chosen wine actually moved.
+          Ranking accuracy is measured as the area under the receiver operating characteristic curve (ROC AUC): the chance
+          that the model scores a wine whose price actually changed above one whose price didn&apos;t. 0.5 is a coin flip
+          and 1.0 is perfect. Average precision shows how often the wines the model flags really moved; compare it with
+          the share of all wines that moved, in brackets.
         </p>
         <table className="tabular w-full min-w-[720px] text-sm">
-          <thead className="border-y border-line text-left text-ink-2">
+          <thead className="table-head border-y border-line text-left">
             <tr>
               <th className="px-4 py-2 font-medium">Horizon</th>
               <th className="px-4 py-2 text-right font-medium">Rise: ROC AUC</th>
-              <th className="px-4 py-2 text-right font-medium">Rise: avg precision (base rate)</th>
+              <th className="px-4 py-2 text-right font-medium">Rise: avg precision (share that rose)</th>
               <th className="px-4 py-2 text-right font-medium">Rise: predicted vs actual rate</th>
               <th className="px-4 py-2 text-right font-medium">Cut: ROC AUC</th>
             </tr>
@@ -159,7 +176,7 @@ export default async function ModelPage() {
       </section>
 
       {importance.length > 0 && (
-        <section className="mb-8 rounded-lg border border-line bg-surface p-4">
+        <section className="mb-8 card p-4">
           <h2 className="font-semibold">What drives the prediction of a price rise</h2>
           <p className="mb-4 text-sm text-ink-2">
             Permutation importance: how much ranking skill (ROC AUC) is lost when a feature&apos;s values are shuffled.
@@ -221,7 +238,7 @@ export default async function ModelPage() {
       )}
 
       {m.vintage_model?.rolling_cv && (
-        <section className="mb-8 overflow-x-auto rounded-lg border border-line bg-surface">
+        <section className="mb-8 overflow-x-auto card">
           <h2 className="px-4 pt-4 font-semibold">Next-vintage model</h2>
           <p className="px-4 pb-3 text-sm text-ink-2">
             Predicts how a wine&apos;s next vintage will be priced against the current one, from{" "}
@@ -232,7 +249,7 @@ export default async function ModelPage() {
             {Math.max(...Object.values(m.vintage_model.same_price_mae_by_fold)).toFixed(3)} across windows.
           </p>
           <table className="tabular w-full min-w-[640px] text-sm">
-            <thead className="border-y border-line text-left text-ink-2">
+            <thead className="table-head border-y border-line text-left">
               <tr>
                 <th className="px-4 py-2 font-medium">Features</th>
                 <th className="px-4 py-2 text-right font-medium">Error (mean)</th>
@@ -263,7 +280,46 @@ export default async function ModelPage() {
         </section>
       )}
 
-      <section className="mb-8 rounded-lg border border-line bg-surface p-4 text-sm text-ink-2">
+      {m.fair_model && (
+        <section className="mb-8 overflow-x-auto card">
+          <h2 className="px-4 pt-4 font-semibold">Fair-price model</h2>
+          <p className="px-4 pb-3 text-sm text-ink-2">
+            Estimates what a wine should cost from what it is: region, grape, classification, style, bottle size, age
+            of the vintage, words in its name, and the producer&apos;s price level from its other wines. Each wine is
+            priced by a model that never saw it or any of its vintages ({m.fair_model.folds}-fold cross-validation
+            grouped by wine), so the gap between shelf price and fair price is an honest value signal. Scores are on
+            all {m.fair_model.variants.full?.wines.toLocaleString()} wines; R² is the share of variation in (log)
+            price the model explains.
+          </p>
+          <table className="tabular w-full min-w-[640px] text-sm">
+            <thead className="table-head border-y border-line text-left">
+              <tr>
+                <th className="px-4 py-2 font-medium">Model</th>
+                <th className="px-4 py-2 text-right font-medium">Typical error</th>
+                <th className="px-4 py-2 text-right font-medium">R²</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(m.fair_model.variants).map(([k, r]) => (
+                <tr key={k} className={`border-b border-line last:border-0 ${k === "full" ? "font-semibold" : ""}`}>
+                  <td className="px-4 py-2">{k === "full" ? "Full model (used)" : k}</td>
+                  <td className="px-4 py-2 text-right">{r.median_abs_pct_error}%</td>
+                  <td className="px-4 py-2 text-right">{r.r2_log.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="px-4 py-3 text-sm text-ink-2">
+            Typical error is the median absolute percentage error. Both the name text and the producer&apos;s price
+            level add real information; vintage weather adds none, consistent with the other experiments: retail prices
+            follow producer and appellation more than the growing season.
+            {m.fair_model.variants.full?.interval_80_coverage_pct_calibrated != null &&
+              ` The 80% fair range covers ${m.fair_model.variants.full.interval_80_coverage_pct_calibrated}% of real prices after calibration; a wine is flagged as a deal or a premium only when its price falls outside that range.`}
+          </p>
+        </section>
+      )}
+
+      <section className="mb-8 card p-4 text-sm text-ink-2">
         <h2 className="mb-2 font-semibold text-ink">Serving</h2>
         <p>
           The training job writes batch forecasts for every wine. The API also loads the same model artifact from the

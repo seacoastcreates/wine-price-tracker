@@ -73,6 +73,26 @@ about 4,900 past vintage changes, of which 42% arrived priced higher. It beats "
 by 4–21% in mean absolute error, with rise AUC around 0.77. Each wine page shows this outlook, together with the
 drinking window, in its collector's view.
 
+## Fair-price model
+`ml/wineprice/fair.py` predicts the price a wine *should* have, given what it is. This is a hedonic pricing model, a
+standard approach in wine economics.
+- **Features:** region, grape, classification, style, bottle size, years since vintage, listing year, the words in its
+  name (as a ridge-regression score on name words), and the producer's price level from its **other** wines. It never
+  sees the wine's own price, and price tier is excluded because it's derived from price.
+- **No leakage:** cross-validation is grouped by wine family, so each wine is priced by a model that saw none of its
+  vintages. The producer encoding and the name score are fitted on training folds only.
+- **Results on held-out wines:**
+  - Median error **16.3%**, and it explains **80%** of the variation in log price.
+  - Baselines: 23.7% error using the producer's other wines, and 36.7% using the region + grape median.
+  - Dropping the name words raises error to 18.2%, and dropping the producer level raises it to 19.1%.
+  - Vintage weather adds nothing (16.4% error).
+- **Range:** the 80% range is calibrated to cover 80.3% of real prices. A wine is flagged as a deal or a premium only
+  when its price falls outside that range, which happens for about 9% of wines each way.
+- **Known limitation:**
+  - A famous producer's second or entry-level wines, such as Mouton's Aile d'Argent, can look like bargains.
+  - Icons such as Grange or Opus One show large premiums, reflecting reputation the features don't capture.
+- **Where it appears:** a "Best values" tab, a "vs fair price" column, and a fair-price tile on each wine page.
+
 ## Model
 Wine list prices are sticky: **about 3% of wines change list price in a given quarter**. When vintages were merged, this looked
 like 4.4%, because a new vintage arriving at a new price counted as a price change. When a price rises, the typical increase is

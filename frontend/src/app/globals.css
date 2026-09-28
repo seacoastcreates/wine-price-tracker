@@ -1,79 +1,240 @@
 @import "tailwindcss";
 
+/* Cellar Index design tokens: a wine merchant's ledger. Warm paper, ink, burgundy and aged gold in
+   light mode; aubergine charcoal with rosé in dark mode. Chart series colors are the validated
+   colorblind-safe set and are deliberately not re-themed. */
 :root {
   color-scheme: light;
-  --page: #f9f9f7;
-  --surface: #fcfcfb;
-  --ink: #0b0b0b;
-  --ink-2: #52514e;
-  --muted: #898781;
-  --grid: #e1e0d9;
-  --axis: #c3c2b7;
-  --border: rgba(11, 11, 11, 0.1);
-  --accent: #7a1f3d;
+  --page: #f6f1e9;
+  --surface: #fffcf7;
+  --surface-2: #f1eadf;
+  --ink: #1f1916;
+  --ink-2: #5a5049;
+  --muted: #8b8077;
+  --grid: #e7dfd2;
+  --axis: #cdc3b4;
+  --border: rgba(74, 44, 30, 0.13);
+  --accent: #7a1f35;
+  --accent-hover: #641a2c;
+  --on-accent: #fff8ef;
+  --gold: #9c7a3f;
+  --shadow: 0 1px 2px rgba(60, 35, 20, 0.05), 0 4px 16px -8px rgba(60, 35, 20, 0.12);
   --series-history: #2a78d6;
   --series-forecast: #eb6834;
   --series-sale: #1baf7a;
-  --up: #006300;
+  --up: #1d6b38;
   --down: #b3261e;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --page: #0d0d0d;
-    --surface: #1a1a19;
-    --ink: #ffffff;
-    --ink-2: #c3c2b7;
-    --grid: #2c2c2a;
-    --axis: #383835;
-    --border: rgba(255, 255, 255, 0.1);
-    --accent: #e08aa6;
+    --page: #110d10;
+    --surface: #1a1518;
+    --surface-2: #231c20;
+    --ink: #f4ede5;
+    --ink-2: #c8bcb1;
+    --muted: #938780;
+    --grid: #2d262a;
+    --axis: #3f363b;
+    --border: rgba(255, 236, 222, 0.1);
+    --accent: #d98a9e;
+    --accent-hover: #e7a3b5;
+    --on-accent: #1a0f13;
+    --gold: #cfae7a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
     --series-history: #3987e5;
     --series-forecast: #d95926;
     --series-sale: #199e70;
-    --up: #0ca30c;
+    --up: #45b86c;
     --down: #e66767;
   }
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --page: #0d0d0d;
-  --surface: #1a1a19;
-  --ink: #ffffff;
-  --ink-2: #c3c2b7;
-  --grid: #2c2c2a;
-  --axis: #383835;
-  --border: rgba(255, 255, 255, 0.1);
-  --accent: #e08aa6;
+  --page: #110d10;
+  --surface: #1a1518;
+  --surface-2: #231c20;
+  --ink: #f4ede5;
+  --ink-2: #c8bcb1;
+  --muted: #938780;
+  --grid: #2d262a;
+  --axis: #3f363b;
+  --border: rgba(255, 236, 222, 0.1);
+  --accent: #d98a9e;
+  --accent-hover: #e7a3b5;
+  --on-accent: #1a0f13;
+  --gold: #cfae7a;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   --series-history: #3987e5;
   --series-forecast: #d95926;
   --series-sale: #199e70;
-  --up: #0ca30c;
+  --up: #45b86c;
   --down: #e66767;
 }
 
 @theme inline {
   --color-page: var(--page);
   --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-2);
   --color-muted: var(--muted);
   --color-grid: var(--grid);
   --color-line: var(--border);
   --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-on-accent: var(--on-accent);
+  --color-gold: var(--gold);
   --color-up: var(--up);
   --color-down: var(--down);
-  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
 }
 
 body {
   background: var(--page);
   color: var(--ink);
   font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01";
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* ---- shared components ------------------------------------------------------------------- */
+
+@utility card {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 0.875rem;
+  box-shadow: var(--shadow);
+}
+
+@utility display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  letter-spacing: -0.015em;
+}
+
+@utility eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+@utility btn-primary {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0.5rem;
+  background: var(--accent);
+  color: var(--on-accent);
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background-color 120ms;
+  &:hover {
+    background: var(--accent-hover);
+  }
+  &:disabled {
+    opacity: 0.5;
+  }
+}
+
+@utility chip {
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-2);
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+  transition: color 120ms, border-color 120ms;
+  &:hover {
+    color: var(--ink);
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  }
+}
+
+@utility chip-active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+  &:hover {
+    color: var(--on-accent);
+  }
+}
+
+@utility segment {
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  color: var(--ink-2);
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  &:hover {
+    color: var(--ink);
+    background: var(--surface-2);
+  }
+}
+
+@utility segment-active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+  &:hover {
+    color: var(--on-accent);
+    background: var(--accent-hover);
+  }
+}
+
+@utility tab {
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  padding: 0.625rem 0.25rem;
+  font-size: 0.9375rem;
+  color: var(--ink-2);
+  white-space: nowrap;
+  &:hover {
+    color: var(--ink);
+  }
+}
+
+@utility tab-active {
+  border-bottom-color: var(--accent);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+@utility field {
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  &:focus {
+    outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    outline-offset: 1px;
+  }
+}
+
+@utility table-head {
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+}
+
+@utility badge {
+  border-radius: 0.375rem;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  padding: 0.125rem 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
 }

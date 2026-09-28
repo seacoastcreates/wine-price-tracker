@@ -59,6 +59,10 @@ class WineSummary(BaseModel):
     p_down_1y: float | None
     up_pct: float | None
     down_pct: float | None
+    fair_price: float | None
+    fair_low: float | None
+    fair_high: float | None
+    value_pct: float | None
 
 
 class WineList(BaseModel):
@@ -136,9 +140,16 @@ year_ahead AS (
     FROM forecasts f JOIN active_model USING (model_version)
     ORDER BY f.wine_id, f.target_date DESC
 ),
+fair AS (
+    SELECT fp.wine_id, fp.fair_p10, fp.fair_p50, fp.fair_p90, fp.value_pct
+    FROM fair_prices fp JOIN active_model USING (model_version)
+),
 filtered AS (
-    SELECT w.*, ya.p_up AS p_up_1y, ya.p_down AS p_down_1y, ya.up_pct, ya.down_pct
+    SELECT w.*, ya.p_up AS p_up_1y, ya.p_down AS p_down_1y, ya.up_pct, ya.down_pct,
+           fair.fair_p50::float AS fair_price, fair.fair_p10::float AS fair_low, fair.fair_p90::float AS fair_high,
+           fair.value_pct
     FROM wines w LEFT JOIN year_ahead ya ON ya.wine_id = w.id
+    LEFT JOIN fair ON fair.wine_id = w.id
     WHERE (CAST(:style AS TEXT) IS NULL OR w.style = :style)
       AND (CAST(:tier AS TEXT) IS NULL OR w.tier = :tier)
       AND (CAST(:q AS TEXT) IS NULL OR w.name ILIKE '%' || :q || '%')
@@ -155,6 +166,7 @@ SELECT f.slug, f.family, f.name, f.vintage, f.region, f.size, f.style, f.tier, f
        ROUND((100 * (cur.regular_price / NULLIF(y1.regular_price, 0) - 1))::numeric, 1)::float AS change_1y_pct,
        ROUND((100 * (cur.regular_price / NULLIF(y5.regular_price, 0) - 1))::numeric, 1)::float AS change_5y_pct,
        f.p_up_1y, f.p_down_1y, f.up_pct, f.down_pct,
+       f.fair_price, f.fair_low, f.fair_high, f.value_pct,
        COUNT(*) OVER () AS total
 FROM filtered f
 CROSS JOIN LATERAL (
@@ -176,13 +188,24 @@ LEFT JOIN LATERAL (
 ) y5 ON TRUE
 """
 
+# Sortable columns: SQL expression and the default direction on first click.
 SORTS = {
-    "name": "f.name",
-    "price": "cur.regular_price DESC",
-    "likely_up": "f.p_up_1y DESC NULLS LAST, f.name",
-    "likely_down": "f.p_down_1y DESC NULLS LAST, f.name",
-    "change_1y": "change_1y_pct DESC NULLS LAST, f.name",
+    "name": ("f.name", "asc"),
+    "price": ("COALESCE(cur.promo_price, cur.regular_price)", "desc"),  # what the shelf shows
+    "change_1y": ("change_1y_pct", "desc"),
+    "change_5y": ("change_5y_pct", "desc"),
+    "fair": ("f.value_pct", "desc"),
+    "likely_up": ("f.p_up_1y", "desc"),
+    "likely_down": ("f.p_down_1y", "desc"),
+    # Best value: prices below the fair range first, then the biggest discount to fair price.
+    "value": ("(cur.regular_price < f.fair_low) DESC, f.value_pct", "asc"),
 }
+
+
+def order_by(sort: str, direction: str | None) -> str:
+    expr, default = SORTS[sort]
+    d = (direction or default).upper()
+    return f" ORDER BY {expr} {d} NULLS LAST, f.name ASC, f.slug ASC"
 
 
 def summaries(**params) -> list[dict]:
@@ -204,12 +227,13 @@ def list_wines(
     featured: bool = Query(False, description="Only the curated list of popular wines"),
     investor: bool = Query(False, description="Only vintage-dated premium and luxury wines"),
     active: bool = Query(True, description="Only wines on the latest price list"),
-    sort: Literal["name", "price", "likely_up", "likely_down", "change_1y"] = "name",
+    sort: Literal["name", "price", "change_1y", "change_5y", "fair", "likely_up", "likely_down", "value"] = "name",
+    dir: Literal["asc", "desc"] | None = Query(None, description="Sort direction (default depends on the column)"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
     rows = summaries(style=style, tier=tier, q=q, featured=featured, active=active, investor=investor,
-                     tail=f" ORDER BY {SORTS[sort]} LIMIT :limit OFFSET :offset", limit=limit, offset=offset)
+                     tail=order_by(sort, dir) + " LIMIT :limit OFFSET :offset", limit=limit, offset=offset)
     return {"total": rows[0]["total"] if rows else 0, "items": rows}
 
 

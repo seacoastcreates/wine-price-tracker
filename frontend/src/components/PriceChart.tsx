@@ -97,7 +97,7 @@ export default function PriceChart({ prices, forecast }: { prices: PricePoint[];
   }, [rows]);
 
   return (
-    <div className="rounded-lg border border-line bg-surface p-4">
+    <div className="card p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-4">
           <Key kind="history" label="List price" />
@@ -111,7 +111,7 @@ export default function PriceChart({ prices, forecast }: { prices: PricePoint[];
               key={r}
               onClick={() => setRange(r)}
               aria-pressed={range === r}
-              className={`rounded px-2.5 py-1 text-sm ${range === r ? "bg-ink text-page" : "text-ink-2 hover:bg-page"}`}
+              className={`segment ${range === r ? "segment-active" : ""}`}
             >
               {r}
             </button>

@@ -22,6 +22,10 @@ export type WineSummary = {
   p_down_1y: number | null;
   up_pct: number | null;
   down_pct: number | null;
+  fair_price: number | null;
+  fair_low: number | null;
+  fair_high: number | null;
+  value_pct: number | null;
 };
 
 export type WineList = { total: number; items: WineSummary[] };
@@ -68,6 +72,10 @@ export type ModelInfo = {
       brand_attributes?: AblationRun;
       brand_attributes_earlier_holdout?: { holdout: string } & Record<string, Record<string, number> | string>;
     };
+    fair_model?: {
+      folds: number;
+      variants: Record<string, FairEval>;
+    };
     vintage_model?: {
       transitions: number;
       folds: number;
@@ -85,6 +93,7 @@ export type ListParams = {
   featured?: boolean;
   investor?: boolean;
   sort?: string;
+  dir?: "asc" | "desc";
   offset?: number;
 };
 
@@ -102,6 +111,13 @@ export type Insights = {
 
 type AblationRow = { n: number; positives: number; roc_auc?: number; brier_skill?: number };
 type AblationRun = Record<string, Record<string, AblationRow>>;
+type FairEval = {
+  wines: number;
+  median_abs_pct_error: number;
+  r2_log: number;
+  interval_80_coverage_pct: number;
+  interval_80_coverage_pct_calibrated?: number;
+};
 type VintageCv = {
   mae: number;
   auc: number;

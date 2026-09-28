@@ -24,7 +24,7 @@ def export(out_csv: str) -> None:
     sql = """
         SELECT p.wine_id, p.observed_on AS date, p.regular_price::float AS price,
                p.promo_price::float AS promo_price, p.promo_type, w.style, w.tier, w.vintage, w.region, w.family,
-               w.brand, w.grape, w.classification
+               w.brand, w.grape, w.classification, w.name, w.size
         FROM price_observations p JOIN wines w ON w.id = p.wine_id
         ORDER BY p.wine_id, p.observed_on
     """
@@ -48,11 +48,13 @@ def load(artifacts_dir: str) -> None:
     d = Path(artifacts_dir)
     metrics = json.loads((d / "metrics.json").read_text())
     # Optional extras produced by ablation.py and train_vintage.py.
-    for key, name in (("ablation", "ablation.json"), ("vintage_model", "vintage_metrics.json")):
+    for key, name in (("ablation", "ablation.json"), ("vintage_model", "vintage_metrics.json"),
+                      ("fair_model", "fair_metrics.json")):
         if (d / name).exists():
             metrics[key] = json.loads((d / name).read_text())
     forecasts = pd.read_csv(d / "forecasts.csv")
     outlook = pd.read_csv(d / "vintage_outlook.csv") if (d / "vintage_outlook.csv").exists() else None
+    fair = pd.read_csv(d / "fair_prices.csv") if (d / "fair_prices.csv").exists() else None
     version = metrics["model_version"]
     dest = REGISTRY / version
     shutil.copytree(d, dest, dirs_exist_ok=True)
@@ -82,6 +84,14 @@ def load(artifacts_dir: str) -> None:
                     ":p50_pct, :p90_pct)"
                 ),
                 outlook.assign(model_version=version).to_dict("records"),
+            )
+        if fair is not None:
+            conn.execute(
+                text(
+                    "INSERT INTO fair_prices (model_version, wine_id, fair_p10, fair_p50, fair_p90, value_pct) "
+                    "VALUES (:model_version, :wine_id, :fair_p10, :fair_p50, :fair_p90, :value_pct)"
+                ),
+                fair.assign(model_version=version).to_dict("records"),
             )
     print(f"Registered {version} at {artifact_uri}; loaded {len(forecasts)} forecasts; it is now the active model")
 

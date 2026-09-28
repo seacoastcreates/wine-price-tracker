@@ -87,5 +87,17 @@ CREATE TABLE IF NOT EXISTS vintage_outlook (
     PRIMARY KEY (model_version, wine_id)
 );
 
+-- Fair-price (hedonic) estimates for wines on the latest price list: what comparable wines cost,
+-- from a model that never saw the wine or its other vintages. value_pct < 0 = priced below fair.
+CREATE TABLE IF NOT EXISTS fair_prices (
+    model_version TEXT NOT NULL REFERENCES model_runs(model_version) ON DELETE CASCADE,
+    wine_id       INTEGER NOT NULL REFERENCES wines(id) ON DELETE CASCADE,
+    fair_p10      NUMERIC(10, 2) NOT NULL,
+    fair_p50      NUMERIC(10, 2) NOT NULL,
+    fair_p90      NUMERIC(10, 2) NOT NULL,
+    value_pct     REAL NOT NULL,
+    PRIMARY KEY (model_version, wine_id)
+);
+
 CREATE INDEX IF NOT EXISTS wines_name_lower ON wines (lower(name));
 CREATE INDEX IF NOT EXISTS wines_family ON wines (family);

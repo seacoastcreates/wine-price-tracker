@@ -17,14 +17,16 @@ export default async function WinePage({ params }: PageProps<"/wines/[slug]">) {
   if (!wine || !prices) notFound();
 
   const points = forecast?.points ?? [];
+  const dw = insights?.drinking_window;
+  const nv = insights?.next_vintage;
   const yearOut = points.at(-1);
   const changes = prices.filter((p, i) => i > 0 && p.regular_price !== prices[i - 1].regular_price).length;
   const sales = prices.filter((p) => p.promo_type === "sale").length;
 
   return (
     <>
-      <Link href="/" className="text-sm text-ink-2 hover:text-ink">← All wines</Link>
-      <h1 className="mt-3 text-3xl font-semibold tracking-tight">{wineTitle(wine)}</h1>
+      <Link href="/" className="text-sm text-ink-2 hover:text-accent">← All wines</Link>
+      <h1 className="display mt-3 text-4xl font-semibold">{wineTitle(wine)}</h1>
       <p className="mt-1 mb-6 text-ink-2">
         <span className="capitalize">{wine.style === "rose" ? "rosé" : wine.style}</span>
         {wine.region ? ` · ${wine.region}` : ""} · {wine.size.replace(" ML", " ml")}
@@ -44,9 +46,9 @@ export default async function WinePage({ params }: PageProps<"/wines/[slug]">) {
           }
         />
         <StatTile
-          label="List-price change"
+          label="List-price change, past year"
           value={<Delta pct={wine.change_1y_pct} />}
-          sub={<>over 1 year · 5 years: <Delta pct={wine.change_5y_pct} /></>}
+          sub={<>Past 5 years: <Delta pct={wine.change_5y_pct} /></>}
         />
         <StatTile
           label="Outlook for the next 12 months"
@@ -67,7 +69,7 @@ export default async function WinePage({ params }: PageProps<"/wines/[slug]">) {
       <PriceChart prices={prices} forecast={points} />
 
       {points.length > 0 && (
-        <section className="mt-6 rounded-lg border border-line bg-surface p-4">
+        <section className="mt-6 card p-4">
           <h2 className="mb-3 font-semibold">Chance the list price will differ from today&apos;s {usd(wine.regular_price)}</h2>
           <div className="grid gap-2 text-sm sm:grid-cols-[8rem_1fr_1fr]">
             <div className="text-ink-2">By</div>
@@ -84,33 +86,51 @@ export default async function WinePage({ params }: PageProps<"/wines/[slug]">) {
         </section>
       )}
 
-      {(insights?.drinking_window || insights?.next_vintage) && (
-        <section className="mt-6 grid gap-3 sm:grid-cols-2">
-          {insights.drinking_window && (
+      {(dw || nv || wine.fair_price != null) && (
+        <section className="mt-6 grid gap-3 sm:grid-cols-3">
+          {wine.fair_price != null && (
             <StatTile
-              label="Typical drinking window"
-              value={`${insights.drinking_window.opens}–${insights.drinking_window.closes}`}
+              label="Fair price"
+              value={usd(wine.fair_price)}
               sub={
                 <>
-                  {insights.drinking_window.status === "before"
-                    ? `Opens in ${insights.drinking_window.opens - new Date().getFullYear()} year(s)`
-                    : insights.drinking_window.status === "in"
-                      ? "In its window now"
-                      : "Past its typical window"}
-                  {" · "}rule of thumb, {insights.drinking_window.basis}
+                  Comparable wines cost {usd(wine.fair_low)}–{usd(wine.fair_high)} (80% range).{" "}
+                  {wine.regular_price == null || wine.fair_low == null || wine.fair_high == null
+                    ? null
+                    : wine.regular_price < wine.fair_low
+                      ? `At ${usd(wine.regular_price)} it is priced ${Math.abs(Math.round(wine.value_pct ?? 0))}% below them.`
+                      : wine.regular_price > wine.fair_high
+                        ? `At ${usd(wine.regular_price)} it carries a ${Math.round(wine.value_pct ?? 0)}% premium: often reputation or scarcity the model can't see.`
+                        : `At ${usd(wine.regular_price)} it is fairly priced for what it is.`}
                 </>
               }
             />
           )}
-          {insights.next_vintage && (
+          {dw && (
             <StatTile
-              label={`Next vintage (${insights.next_vintage.next_vintage}) vs this one`}
-              value={`${pct(insights.next_vintage.p_up)} chance priced higher`}
+              label="Typical drinking window"
+              value={`${dw.opens}–${dw.closes}`}
               sub={
                 <>
-                  Typical change {insights.next_vintage.p50_pct > 0 ? "+" : ""}
-                  {insights.next_vintage.p50_pct}% (80% range {insights.next_vintage.p10_pct}% to{" "}
-                  {insights.next_vintage.p90_pct}%) · {pct(insights.next_vintage.p_down)} chance priced lower
+                  {dw.status === "before"
+                    ? `Opens in ${dw.opens - new Date().getFullYear()} year(s)`
+                    : dw.status === "in"
+                      ? "In its window now"
+                      : "Past its typical window"}
+                  {" · "}rule of thumb, {dw.basis}
+                </>
+              }
+            />
+          )}
+          {nv && (
+            <StatTile
+              label={`Next vintage (${nv.next_vintage}) vs this one`}
+              value={`${pct(nv.p_up)} chance priced higher`}
+              sub={
+                <>
+                  Typical change {nv.p50_pct > 0 ? "+" : ""}
+                  {nv.p50_pct}% (80% range {nv.p10_pct}% to{" "}
+                  {nv.p90_pct}%) · {pct(nv.p_down)} chance priced lower
                 </>
               }
             />
@@ -123,22 +143,22 @@ export default async function WinePage({ params }: PageProps<"/wines/[slug]">) {
       )}
 
       {vintages && vintages.length > 1 && (
-        <section className="mt-6 overflow-x-auto rounded-lg border border-line bg-surface">
+        <section className="mt-6 overflow-x-auto card">
           <h2 className="px-4 pt-4 font-semibold">Other vintages</h2>
           <p className="px-4 pb-3 text-sm text-ink-2">Each vintage is tracked as its own wine.</p>
           <table className="w-full min-w-[640px] text-sm">
-            <thead className="border-y border-line text-left text-ink-2">
+            <thead className="table-head border-y border-line text-left">
               <tr>
                 <th className="px-4 py-2 font-medium">Vintage</th>
                 <th className="px-4 py-2 font-medium">Last listed</th>
                 <th className="px-4 py-2 text-right font-medium">Shelf price</th>
-                <th className="px-4 py-2 text-right font-medium">1 yr</th>
+                <th className="px-4 py-2 text-right font-medium">1yr History</th>
                 <th className="px-4 py-2 font-medium">Chance of a rise within a year</th>
               </tr>
             </thead>
             <tbody>
               {vintages.map((v) => (
-                <tr key={v.slug} className={`border-b border-line last:border-0 ${v.slug === wine.slug ? "bg-page" : ""}`}>
+                <tr key={v.slug} className={`border-b border-line last:border-0 ${v.slug === wine.slug ? "bg-surface-2" : ""}`}>
                   <td className="px-4 py-2">
                     {v.slug === wine.slug ? (
                       <span className="font-medium">{v.vintage === "NV" ? "No vintage listed" : v.vintage} (this page)</span>
