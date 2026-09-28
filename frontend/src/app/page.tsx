@@ -1,3 +1,4 @@
+import Form from "next/form";
 import Link from "next/link";
 import { api, wineTitle, type ListParams } from "@/lib/api";
 import { Chance, Delta, FairValue, ShelfPrice, SourceNote, StatTile } from "@/components/ui";
@@ -57,6 +58,7 @@ function SortHeader({ col, s, active, dir }: { col: (typeof COLUMNS)[number]; s:
     >
       <Link
         href={href(s, { sort: col.key, dir: next })}
+        scroll={false}
         className={`hover:text-ink ${active ? "text-ink" : ""} ${col.key === "likely_up" ? "" : "whitespace-nowrap"}`}
         title={`Sort ${next === "asc" ? (col.key === "name" ? "A to Z" : "low to high") : col.key === "name" ? "Z to A" : "high to low"}`}
       >
@@ -67,10 +69,13 @@ function SortHeader({ col, s, active, dir }: { col: (typeof COLUMNS)[number]; s:
   );
 }
 
+// Filters, sorting and tabs keep the reader's scroll position (scroll={false}); pagination jumps to
+// the top of the table instead, via the #wine-table anchor.
 function Chip({ label, to, active, pill = true }: { label: string; to: string; active: boolean; pill?: boolean }) {
   const cls = pill ? `chip ${active ? "chip-active" : ""}` : `segment ${active ? "segment-active" : ""}`;
+  const toTable = to.includes("#wine-table");
   return (
-    <Link href={to} className={cls}>
+    <Link href={to} scroll={toTable} className={cls}>
       {label}
     </Link>
   );
@@ -78,7 +83,7 @@ function Chip({ label, to, active, pill = true }: { label: string; to: string; a
 
 function Tab({ label, to, active }: { label: string; to: string; active: boolean }) {
   return (
-    <Link href={to} role="tab" aria-selected={active} className={`tab ${active ? "tab-active" : ""}`}>
+    <Link href={to} scroll={false} role="tab" aria-selected={active} className={`tab ${active ? "tab-active" : ""}`}>
       {label}
     </Link>
   );
@@ -173,7 +178,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       )}
 
       <div className="mb-4 flex flex-col gap-3">
-        <form className="flex gap-2" action="/">
+        <Form className="flex gap-2" action="/" scroll={false}>
           <input type="hidden" name="view" value="all" />
           {s.style && <input type="hidden" name="style" value={s.style} />}
           {s.tier && <input type="hidden" name="tier" value={s.tier} />}
@@ -184,7 +189,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             className="field w-full max-w-sm"
           />
           <button className="btn-primary">Search</button>
-        </form>
+        </Form>
         <div className="flex flex-wrap gap-2">
           <Chip label="All styles" to={href(s, { style: undefined })} active={!s.style} />
           {STYLES.map((st) => (
@@ -199,7 +204,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </div>
       </div>
 
-      <div className="overflow-x-auto card">
+      <div id="wine-table" className="scroll-mt-20 overflow-x-auto card">
         <table className="w-full min-w-[880px] text-sm">
           <thead className="table-head border-b border-line text-left">
             <tr>
@@ -249,8 +254,12 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             {list.total.toLocaleString()}
           </span>
           <span className="flex gap-2">
-            {s.page > 0 && <Chip label="← Previous" to={href(s, { page: s.page - 1 })} active={false} pill={false} />}
-            {(s.page + 1) * PAGE < list.total && <Chip label="Next →" to={href(s, { page: s.page + 1 })} active={false} pill={false} />}
+            {s.page > 0 && (
+              <Chip label="← Previous" to={`${href(s, { page: s.page - 1 })}#wine-table`} active={false} pill={false} />
+            )}
+            {(s.page + 1) * PAGE < list.total && (
+              <Chip label="Next →" to={`${href(s, { page: s.page + 1 })}#wine-table`} active={false} pill={false} />
+            )}
           </span>
         </div>
       )}

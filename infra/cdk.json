@@ -1,0 +1,4 @@
+{
+  "app": ".venv/bin/python app.py",
+  "watch": { "include": ["**"], "exclude": ["cdk.out", ".venv", "**/__pycache__"] }
+}

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { api } from "@/lib/api";
 import { SourceNote, StatTile } from "@/components/ui";
 
@@ -112,7 +113,10 @@ export default async function ModelPage() {
       <p className="mt-2 mb-6 max-w-3xl text-ink-2">
         Wine list prices rarely change, so the model predicts <em>whether</em> each wine&apos;s list price will rise or
         fall over the next four quarters, and by how much. One model is trained across all {m.series.toLocaleString()}{" "}
-        wines and scored on the most recent year, which it never saw during training.
+        wines and scored on the most recent year, which it never saw during training.{" "}
+        <Link className="whitespace-nowrap font-medium text-accent underline underline-offset-2 hover:text-accent-hover" href="/architecture">
+          See the full system architecture →
+        </Link>
       </p>
 
       <section className="mb-8 grid gap-3 sm:grid-cols-3">

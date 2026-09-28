@@ -146,8 +146,28 @@ cd ../frontend && npm install && npm run dev                   # http://localhos
 cd ../backend && .venv/bin/python -m pytest tests               # parity + API tests
 ```
 
+## Deploy to AWS
+Infrastructure is AWS CDK (Python) in `infra/`. It creates one EC2 t4g.small instance (Ubuntu 24.04, arm64) behind
+CloudFront, an S3 bucket for nightly database backups, and a monthly budget with email alerts.
+- **Routing:** nginx on the instance sends `/` to Next.js and `/api/v1/` to FastAPI, so the API docs are at
+  `/api/v1/docs`.
+- **Database:** PostgreSQL runs on the same instance.
+- **Access:** the security group only admits CloudFront, and admin access is through SSM Session Manager. There's no SSH.
+- **Reproducible builds:** the source tree and a data bundle (database dump plus the active model) are uploaded as CDK
+  assets. `deploy/bootstrap.sh` builds the server from them on first boot, and any change replaces the instance.
+
+```bash
+./deploy/package.sh                                    # dump the DB + copy the active model into deploy/bundle
+cd infra && python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
+npx aws-cdk@2.1143.0 bootstrap aws://ACCOUNT/us-east-1 # once per account/region (needs admin)
+npx aws-cdk@2.1143.0 diff && npx aws-cdk@2.1143.0 deploy CellarIndex
+```
+- **Server setup** takes about 8 minutes after the stack finishes. Its log is at `/var/log/cellar-bootstrap.log`.
+- **After bootstrapping,** the deploying user only needs `deploy/claude-deployer-policy.json`, which lets it use CDK's
+  own deployment roles.
+
 ## Roadmap
-1. AWS deploy (CDK, Python): Amplify Hosting, Lambda and API Gateway, Aurora Serverless v2, and a SageMaker training job run
-   each quarter by EventBridge when a new price list is published.
+1. A quarterly SageMaker Processing job to retrain the models when a new price list is published, and an S3-backed model
+   registry.
 2. More sources for more frequent data, such as other state-run retailers or retailer product pages that allow crawling.
 3. Bedrock summaries that explain in plain English why a price is likely to move, served as another API endpoint.
