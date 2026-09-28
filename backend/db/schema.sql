@@ -8,12 +8,24 @@ CREATE TABLE IF NOT EXISTS wines (
     family         TEXT NOT NULL,
     name           TEXT NOT NULL,
     vintage        TEXT NOT NULL,                  -- year, or 'NV' when none is printed
+    region         TEXT,                           -- growing region parsed from the name (NULL if none)
+    brand          TEXT,                           -- producer / brand parsed from the name
+    grape          TEXT,                           -- grape variety, named or implied by the appellation
+    classification TEXT,                           -- e.g. Grand Cru, Premier Cru, Reserva (NULL if none)
     size           TEXT NOT NULL,
     style          TEXT NOT NULL CHECK (style IN ('red', 'white', 'rose', 'sparkling', 'dessert')),
     tier           TEXT NOT NULL CHECK (tier IN ('everyday', 'premium', 'luxury')),
     source_codes   TEXT[] NOT NULL DEFAULT '{}',
     is_featured    BOOLEAN NOT NULL DEFAULT FALSE,
     is_active      BOOLEAN NOT NULL DEFAULT TRUE   -- listed in the most recent price list
+);
+
+-- Growing regions with vineyard-centroid coordinates, for weather lookups.
+CREATE TABLE IF NOT EXISTS regions (
+    name       TEXT PRIMARY KEY,
+    latitude   REAL NOT NULL,
+    longitude  REAL NOT NULL,
+    hemisphere TEXT NOT NULL CHECK (hemisphere IN ('N', 'S'))
 );
 
 -- One row per wine per price list. regular_price is the list price; promo_price is a
@@ -39,6 +51,7 @@ CREATE TABLE IF NOT EXISTS model_runs (
     horizon       INTEGER NOT NULL,
     horizon_unit  TEXT NOT NULL,
     metrics       JSONB NOT NULL,
+    artifact_uri  TEXT NOT NULL,   -- where the model.joblib lives: a local path or s3://...
     is_active     BOOLEAN NOT NULL DEFAULT FALSE
 );
 
@@ -58,6 +71,20 @@ CREATE TABLE IF NOT EXISTS forecasts (
     up_pct        REAL NOT NULL,    -- typical size of a rise / cut, in percent
     down_pct      REAL NOT NULL,
     PRIMARY KEY (model_version, wine_id, target_date)
+);
+
+-- Next-vintage outlook: how the following vintage of a currently listed vintage wine is likely
+-- to be priced relative to it (from the next-vintage model).
+CREATE TABLE IF NOT EXISTS vintage_outlook (
+    model_version TEXT NOT NULL REFERENCES model_runs(model_version) ON DELETE CASCADE,
+    wine_id       INTEGER NOT NULL REFERENCES wines(id) ON DELETE CASCADE,
+    next_vintage  INTEGER NOT NULL,
+    p_up          REAL NOT NULL,
+    p_down        REAL NOT NULL,
+    p10_pct       REAL NOT NULL,
+    p50_pct       REAL NOT NULL,
+    p90_pct       REAL NOT NULL,
+    PRIMARY KEY (model_version, wine_id)
 );
 
 CREATE INDEX IF NOT EXISTS wines_name_lower ON wines (lower(name));

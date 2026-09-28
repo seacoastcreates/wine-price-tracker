@@ -1,0 +1,14 @@
+[project]
+name = "wineprice"
+version = "0.1.0"
+description = "Feature engineering, models, and inference for wine list-price forecasting"
+requires-python = ">=3.11"
+# Training (SageMaker) and serving (API) must use the same scikit-learn version to load the artifact.
+dependencies = ["pandas>=2.2", "numpy<2", "scikit-learn==1.9.1", "joblib>=1.4"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["wineprice"]

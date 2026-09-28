@@ -16,6 +16,10 @@ from sqlalchemy import text
 from app.db import get_engine
 from ingest.classify import is_wine, product_key, style_of, tier_of, VINTAGE
 from ingest.pa_plcb import OUT as PRICES_CSV
+from ingest.regions import KEYWORDS, REGIONS, region_of
+from wineprice.attributes import brand_of, classification_of, grape_of
+
+REGION_WORDS = {w for k in KEYWORDS for w in k.split()}
 
 SOURCE = "pa_plcb"
 FEATURED = Path(__file__).resolve().parents[1] / "db" / "featured.json"
@@ -93,6 +97,10 @@ def build() -> tuple[dict, list[dict]]:
             "family": family,
             "name": display_name(last["description"]),
             "vintage": vintage,
+            "region": region_of(last["description"]),
+            "brand": brand_of(last["description"], REGION_WORDS),
+            "grape": grape_of(last["description"]),
+            "classification": classification_of(last["description"]),
             "size": last["size"],
             "style": style_of(last["description"]),
             "tier": tier_of(float(last["regular_price"])),
@@ -132,11 +140,23 @@ def main() -> None:
         conn.execute(text("UPDATE wines SET is_featured = FALSE"))
         conn.execute(
             text(
+                "INSERT INTO regions (name, latitude, longitude, hemisphere) VALUES (:n, :lat, :lon, :h) "
+                "ON CONFLICT (name) DO UPDATE SET latitude = EXCLUDED.latitude, longitude = EXCLUDED.longitude, "
+                "hemisphere = EXCLUDED.hemisphere"
+            ),
+            [{"n": n, "lat": lat, "lon": lon, "h": h} for n, (lat, lon, h) in REGIONS.items()],
+        )
+        conn.execute(
+            text(
                 """
-                INSERT INTO wines (slug, family, name, vintage, size, style, tier, source_codes, is_featured, is_active)
-                VALUES (:slug, :family, :name, :vintage, :size, :style, :tier, :source_codes, :is_featured, :is_active)
+                INSERT INTO wines (slug, family, name, vintage, region, brand, grape, classification, size, style, tier,
+                                   source_codes, is_featured, is_active)
+                VALUES (:slug, :family, :name, :vintage, :region, :brand, :grape, :classification, :size, :style, :tier,
+                        :source_codes, :is_featured, :is_active)
                 ON CONFLICT (slug) DO UPDATE SET
-                    family = EXCLUDED.family, name = EXCLUDED.name, vintage = EXCLUDED.vintage, size = EXCLUDED.size,
+                    family = EXCLUDED.family, name = EXCLUDED.name, vintage = EXCLUDED.vintage,
+                    region = EXCLUDED.region, brand = EXCLUDED.brand, grape = EXCLUDED.grape,
+                    classification = EXCLUDED.classification, size = EXCLUDED.size,
                     style = EXCLUDED.style, tier = EXCLUDED.tier, source_codes = EXCLUDED.source_codes,
                     is_featured = EXCLUDED.is_featured, is_active = EXCLUDED.is_active
                 """

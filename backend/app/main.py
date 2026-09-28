@@ -1,4 +1,6 @@
+import logging
 import os
+from contextlib import asynccontextmanager
 from datetime import date
 from typing import Literal
 
@@ -6,13 +8,29 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from wineprice.windows import drinking_window
+
+from app import inference
 from app.db import query
 
-app = FastAPI(title="Wine Price Tracker API", version="0.3.0")
+log = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # Load the active model at startup so the first prediction doesn't pay for it.
+    try:
+        log.info("Loaded model %s", inference.store.get().version)
+    except inference.NoActiveModel:
+        log.warning("No active model yet; /predict will return 503 until one is registered")
+    yield
+
+
+app = FastAPI(title="Wine Price Tracker API", version="0.4.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(","),
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -24,6 +42,7 @@ class WineSummary(BaseModel):
     family: str
     name: str
     vintage: str
+    region: str | None
     size: str
     style: str
     tier: str
@@ -71,6 +90,35 @@ class Forecast(BaseModel):
     points: list[ForecastPoint]
 
 
+class DrinkingWindow(BaseModel):
+    opens: int
+    closes: int
+    status: Literal["before", "in", "past"]
+    basis: str
+
+
+class NextVintage(BaseModel):
+    next_vintage: int
+    p_up: float
+    p_down: float
+    p10_pct: float
+    p50_pct: float
+    p90_pct: float
+
+
+class Insights(BaseModel):
+    drinking_window: DrinkingWindow | None
+    next_vintage: NextVintage | None
+
+
+class Prediction(BaseModel):
+    model_version: str
+    latency_ms: float
+    baseline: list[ForecastPoint]
+    scenario: list[ForecastPoint] | None = None
+    applied: inference.Scenario | None = None
+
+
 class ModelInfo(BaseModel):
     model_version: str
     algorithm: str
@@ -98,8 +146,9 @@ filtered AS (
       AND (NOT :active OR w.is_active)
       AND (CAST(:slug AS TEXT) IS NULL OR w.slug = :slug)
       AND (CAST(:family AS TEXT) IS NULL OR w.family = :family)
+      AND (NOT :investor OR (w.vintage <> 'NV' AND w.tier IN ('premium', 'luxury')))
 )
-SELECT f.slug, f.family, f.name, f.vintage, f.size, f.style, f.tier, f.is_featured, f.is_active,
+SELECT f.slug, f.family, f.name, f.vintage, f.region, f.size, f.style, f.tier, f.is_featured, f.is_active,
        cur.observed_on AS latest_date, cur.regular_price::float AS regular_price,
        cur.promo_price::float AS promo_price, cur.promo_type,
        hist.first_date,
@@ -137,7 +186,8 @@ SORTS = {
 
 
 def summaries(**params) -> list[dict]:
-    defaults = dict(style=None, tier=None, q=None, featured=False, active=False, slug=None, family=None)
+    defaults = dict(style=None, tier=None, q=None, featured=False, active=False, slug=None, family=None,
+                    investor=False)
     return query(SUMMARY_SQL + params.pop("tail", ""), **{**defaults, **params})
 
 
@@ -152,12 +202,13 @@ def list_wines(
     tier: str | None = None,
     q: str | None = Query(None, description="Case-insensitive match on the wine name"),
     featured: bool = Query(False, description="Only the curated list of popular wines"),
+    investor: bool = Query(False, description="Only vintage-dated premium and luxury wines"),
     active: bool = Query(True, description="Only wines on the latest price list"),
     sort: Literal["name", "price", "likely_up", "likely_down", "change_1y"] = "name",
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
-    rows = summaries(style=style, tier=tier, q=q, featured=featured, active=active,
+    rows = summaries(style=style, tier=tier, q=q, featured=featured, active=active, investor=investor,
                      tail=f" ORDER BY {SORTS[sort]} LIMIT :limit OFFSET :offset", limit=limit, offset=offset)
     return {"total": rows[0]["total"] if rows else 0, "items": rows}
 
@@ -177,6 +228,32 @@ def get_vintages(slug: str):
     if not family:
         raise HTTPException(404, "Wine not found")
     return summaries(family=family[0]["family"], tail=" ORDER BY f.vintage = 'NV', f.vintage DESC")
+
+
+@app.get("/wines/{slug}/insights", response_model=Insights)
+def get_insights(slug: str):
+    """Typical drinking window (heuristic) and the next-vintage pricing outlook for a wine."""
+    rows = query("SELECT id, vintage, region, style, tier FROM wines WHERE slug = :slug", slug=slug)
+    if not rows:
+        raise HTTPException(404, "Wine not found")
+    w = rows[0]
+    window = None
+    if w["vintage"] != "NV":
+        start, end = drinking_window(w["region"], w["style"], w["tier"])
+        opens, closes = int(w["vintage"]) + start, int(w["vintage"]) + end
+        year = date.today().year
+        window = {"opens": opens, "closes": closes,
+                  "status": "before" if year < opens else "past" if year > closes else "in",
+                  "basis": f"typical for {w['tier']} {w['style']} wine from {w['region'] or 'this category'}"}
+    nxt = query(
+        """
+        SELECT o.next_vintage, o.p_up, o.p_down, o.p10_pct, o.p50_pct, o.p90_pct
+        FROM vintage_outlook o JOIN model_runs m USING (model_version)
+        WHERE m.is_active AND o.wine_id = :id
+        """,
+        id=w["id"],
+    )
+    return {"drinking_window": window, "next_vintage": nxt[0] if nxt else None}
 
 
 @app.get("/wines/{slug}/prices", response_model=list[PricePoint])
@@ -219,6 +296,29 @@ def get_forecast(slug: str):
         "algorithm": rows[0]["algorithm"],
         "points": [{k: r[k] for k in keys} for r in rows],
     }
+
+
+def run_prediction(slug: str, scenario: inference.Scenario | None) -> dict:
+    try:
+        return inference.predict(slug, scenario)
+    except inference.NoActiveModel as e:
+        raise HTTPException(503, str(e)) from e
+    except KeyError as e:
+        raise HTTPException(404, "Wine not found") from e
+    except ValueError as e:
+        raise HTTPException(409, str(e)) from e
+
+
+@app.get("/wines/{slug}/predict", response_model=Prediction)
+def predict_live(slug: str):
+    """Online inference: run the active model on this wine's current price history."""
+    return run_prediction(slug, None)
+
+
+@app.post("/wines/{slug}/predict", response_model=Prediction)
+def predict_scenario(slug: str, scenario: inference.Scenario):
+    """What-if: change today's list price or promotion and see how the forecast responds."""
+    return run_prediction(slug, scenario)
 
 
 @app.get("/model", response_model=ModelInfo)

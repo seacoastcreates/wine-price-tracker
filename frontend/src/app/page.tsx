@@ -7,6 +7,7 @@ const TIERS = ["everyday", "premium", "luxury"];
 const VIEWS = {
   featured: { label: "Popular wines", params: { featured: true, sort: "name" } },
   rising: { label: "Most likely to rise", params: { sort: "likely_up" } },
+  investor: { label: "Collector watch", params: { investor: true, sort: "likely_up" } },
   all: { label: "All wines", params: { sort: "name" } },
 } as const;
 const PAGE = 50;
@@ -90,6 +91,14 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         ))}
       </div>
 
+      {s.view === "investor" && (
+        <p className="mb-4 max-w-3xl text-sm text-ink-2">
+          Vintage-dated premium and luxury wines, ranked by the model&apos;s chance of a list-price rise within a year.
+          These are retail shelf prices at a state retailer, not auction or secondary-market prices, so treat them as
+          a signal of retail pricing momentum rather than investment returns.
+        </p>
+      )}
+
       <div className="mb-4 flex flex-col gap-3">
         <form className="flex gap-2" action="/">
           <input type="hidden" name="view" value="all" />
@@ -136,7 +145,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                     {wineTitle(w)}
                   </Link>
                   <div className="text-xs text-muted">
-                    <span className="capitalize">{w.style === "rose" ? "rosé" : w.style}</span> · {w.size.replace(" ML", " ml")}
+                    <span className="capitalize">{w.style === "rose" ? "rosé" : w.style}</span>
+                    {w.region ? ` · ${w.region}` : ""} · {w.size.replace(" ML", " ml")}
                     {w.vintage === "NV" ? " · non-vintage or vintage not listed" : ""}
                   </div>
                 </td>

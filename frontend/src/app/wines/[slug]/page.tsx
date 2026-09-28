@@ -3,14 +3,16 @@ import { notFound } from "next/navigation";
 import { api, pct, quarterLabel, usd, wineTitle } from "@/lib/api";
 import { Chance, Delta, ShelfPrice, SourceNote, StatTile } from "@/components/ui";
 import PriceChart from "@/components/PriceChart";
+import WhatIf from "@/components/WhatIf";
 
 export default async function WinePage({ params }: PageProps<"/wines/[slug]">) {
   const { slug } = await params;
-  const [wine, prices, forecast, vintages] = await Promise.all([
+  const [wine, prices, forecast, vintages, insights] = await Promise.all([
     api.wine(slug),
     api.prices(slug),
     api.forecast(slug),
     api.vintages(slug),
+    api.insights(slug),
   ]);
   if (!wine || !prices) notFound();
 
@@ -24,7 +26,8 @@ export default async function WinePage({ params }: PageProps<"/wines/[slug]">) {
       <Link href="/" className="text-sm text-ink-2 hover:text-ink">← All wines</Link>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight">{wineTitle(wine)}</h1>
       <p className="mt-1 mb-6 text-ink-2">
-        <span className="capitalize">{wine.style === "rose" ? "rosé" : wine.style}</span> · {wine.size.replace(" ML", " ml")}
+        <span className="capitalize">{wine.style === "rose" ? "rosé" : wine.style}</span>
+        {wine.region ? ` · ${wine.region}` : ""} · {wine.size.replace(" ML", " ml")}
         {wine.vintage === "NV" ? " · non-vintage or vintage not listed" : ` · ${wine.vintage} vintage`}
         {wine.first_date ? ` · tracked since ${quarterLabel(wine.first_date)}` : ""}
         {!wine.is_active ? " · no longer listed" : ""}
@@ -79,6 +82,44 @@ export default async function WinePage({ params }: PageProps<"/wines/[slug]">) {
             ))}
           </div>
         </section>
+      )}
+
+      {(insights?.drinking_window || insights?.next_vintage) && (
+        <section className="mt-6 grid gap-3 sm:grid-cols-2">
+          {insights.drinking_window && (
+            <StatTile
+              label="Typical drinking window"
+              value={`${insights.drinking_window.opens}–${insights.drinking_window.closes}`}
+              sub={
+                <>
+                  {insights.drinking_window.status === "before"
+                    ? `Opens in ${insights.drinking_window.opens - new Date().getFullYear()} year(s)`
+                    : insights.drinking_window.status === "in"
+                      ? "In its window now"
+                      : "Past its typical window"}
+                  {" · "}rule of thumb, {insights.drinking_window.basis}
+                </>
+              }
+            />
+          )}
+          {insights.next_vintage && (
+            <StatTile
+              label={`Next vintage (${insights.next_vintage.next_vintage}) vs this one`}
+              value={`${pct(insights.next_vintage.p_up)} chance priced higher`}
+              sub={
+                <>
+                  Typical change {insights.next_vintage.p50_pct > 0 ? "+" : ""}
+                  {insights.next_vintage.p50_pct}% (80% range {insights.next_vintage.p10_pct}% to{" "}
+                  {insights.next_vintage.p90_pct}%) · {pct(insights.next_vintage.p_down)} chance priced lower
+                </>
+              }
+            />
+          )}
+        </section>
+      )}
+
+      {wine.is_active && wine.regular_price != null && points.length > 0 && (
+        <WhatIf slug={wine.slug} listPrice={wine.regular_price} promoType={wine.promo_type} />
       )}
 
       {vintages && vintages.length > 1 && (

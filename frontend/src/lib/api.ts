@@ -5,6 +5,7 @@ export type WineSummary = {
   family: string;
   name: string;
   vintage: string;
+  region: string | null;
   size: string;
   style: string;
   tier: string;
@@ -60,10 +61,55 @@ export type ModelInfo = {
     share_price_changed_pct: number;
     interval_80_coverage_pct: number;
     price_change: Record<string, { up: ChangeMetrics; down: ChangeMetrics }>;
+    feature_importance?: { feature: string; auc_drop: number }[];
+    feature_groups?: string[];
+    ablation?: {
+      external_data?: AblationRun;
+      brand_attributes?: AblationRun;
+      brand_attributes_earlier_holdout?: { holdout: string } & Record<string, Record<string, number> | string>;
+    };
+    vintage_model?: {
+      transitions: number;
+      folds: number;
+      chosen_groups: string[];
+      same_price_mae_by_fold: Record<string, number>;
+      rolling_cv: Record<string, VintageCv>;
+    };
   };
 };
 
-export type ListParams = { style?: string; tier?: string; q?: string; featured?: boolean; sort?: string; offset?: number };
+export type ListParams = {
+  style?: string;
+  tier?: string;
+  q?: string;
+  featured?: boolean;
+  investor?: boolean;
+  sort?: string;
+  offset?: number;
+};
+
+export type Insights = {
+  drinking_window: { opens: number; closes: number; status: "before" | "in" | "past"; basis: string } | null;
+  next_vintage: {
+    next_vintage: number;
+    p_up: number;
+    p_down: number;
+    p10_pct: number;
+    p50_pct: number;
+    p90_pct: number;
+  } | null;
+};
+
+type AblationRow = { n: number; positives: number; roc_auc?: number; brier_skill?: number };
+type AblationRun = Record<string, Record<string, AblationRow>>;
+type VintageCv = {
+  mae: number;
+  auc: number;
+  mae_vs_current: number;
+  folds_mae_better: number;
+  auc_vs_current: number;
+  folds_auc_better: number;
+};
 
 async function get<T>(path: string): Promise<T | null> {
   const res = await fetch(`${API_URL}${path}`, { next: { revalidate: 300 } });
@@ -82,6 +128,7 @@ export const api = {
     return get<WineList>(`/wines${qs.size ? `?${qs}` : ""}`);
   },
   wine: (slug: string) => get<WineSummary>(`/wines/${slug}`),
+  insights: (slug: string) => get<Insights>(`/wines/${slug}/insights`),
   vintages: (slug: string) => get<WineSummary[]>(`/wines/${slug}/vintages`),
   prices: (slug: string) => get<PricePoint[]>(`/wines/${slug}/prices`),
   forecast: (slug: string) => get<Forecast>(`/wines/${slug}/forecast`),

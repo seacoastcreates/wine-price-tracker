@@ -16,12 +16,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Link href="/" className="text-lg font-semibold tracking-tight">
               <span className="text-accent">●</span> Cellar Index
             </Link>
-            <span className="text-sm text-ink-2">Wine price tracking and forecasting</span>
+            <nav className="flex gap-4 text-sm text-ink-2">
+              <Link href="/" className="hover:text-ink">Wines</Link>
+              <Link href="/model" className="hover:text-ink">Model</Link>
+            </nav>
           </div>
         </header>
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
         <footer className="border-t border-line py-6 text-center text-xs text-muted">
-          Next.js · FastAPI · PostgreSQL · scikit-learn on Amazon SageMaker
+          Next.js · FastAPI model service · PostgreSQL · scikit-learn
         </footer>
       </body>
     </html>
