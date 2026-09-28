@@ -1,5 +1,7 @@
 # Cellar Index: wine price tracker and forecaster
 
+**Live at https://www.thepriceofwine.com**. The API docs are at https://www.thepriceofwine.com/api/v1/docs.
+
 Ten years of **real, official shelf prices** for ~31,000 wines (each vintage counted separately), including about 10,000
 on sale today. Each wine gets a model-based
 estimate of its chance of a price rise or cut over the next year.
@@ -156,6 +158,12 @@ CloudFront, an S3 bucket for nightly database backups, and a monthly budget with
 - **Reproducible builds:** the source tree and a data bundle (database dump plus the active model) are uploaded as CDK
   assets. `deploy/bootstrap.sh` builds the server from them on first boot, and any change replaces the instance.
 
+**Custom domain:** DNS is at Netlify, which can't point the bare domain at CloudFront because it has no ALIAS records.
+- `www.thepriceofwine.com` is a CNAME to the CloudFront distribution, using the ACM certificate from the `CellarCert`
+  stack. That certificate was validated manually with a CNAME in Netlify DNS; the certificate's ARN is in `infra/cdk.json`.
+- `thepriceofwine.com` is served by a one-file Netlify site (`deploy/apex-redirect/`) that 301-redirects every path to
+  `www`.
+
 ```bash
 ./deploy/package.sh                                    # dump the DB + copy the active model into deploy/bundle
 cd infra && python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt
@@ -166,8 +174,33 @@ npx aws-cdk@2.1143.0 diff && npx aws-cdk@2.1143.0 deploy CellarIndex
 - **After bootstrapping,** the deploying user only needs `deploy/claude-deployer-policy.json`, which lets it use CDK's
   own deployment roles.
 
+### Quarterly retraining on SageMaker
+- **Schedule:** an EventBridge Scheduler schedule (`cron(0 6 8 1,4,7,10 ? *)`, a week after each PLCB list) sends an SSM Run
+  Command to the server, which runs `deploy/refresh-aws.sh`.
+- **Ingest:** the script downloads the new price list and the latest weather and crush data, then parses and loads them into
+  PostgreSQL.
+- **Train:** `scripts/sagemaker_train.py` exports the training data to S3 and runs a **SageMaker Processing job**. The
+  training image is built from `ml/Dockerfile`, pinned to the same library versions as the API, so artifacts always load.
+  The job trains all three models.
+- **Publish:** the job's output is copied to the **S3 model registry** (`registry/<version>/`) and registered as the active
+  model. The API loads it from S3 within a minute, with no restart.
+- **Backup and restore:** a fresh database backup is taken after each refresh. Redeploys restore from the newest backup, so
+  refreshed data survives.
+- Processing jobs are used instead of training jobs because the account's training-job quota is 0.
+- To run it by hand: `sudo /opt/cellar/src/deploy/refresh-aws.sh` on the server, or send the same SSM command.
+
+### Explanations with Amazon Bedrock
+- `POST /api/v1/wines/{slug}/explanation` asks **Amazon Nova Lite** (cross-region profile `us.amazon.nova-lite-v1:0`) to
+  explain a wine's outlook.
+- Nova is Amazon's own model, so no Marketplace subscription is needed. This account's Free plan blocks the Marketplace
+  subscription that Anthropic models require. Any model that supports Bedrock's Converse API can be used via
+  `BEDROCK_MODEL_ID`.
+- The model gets only the facts our own models computed: price history, forecast, fair price, drinking window and
+  next-vintage outlook.
+- **Cost controls:** explanations are generated only when a visitor clicks, cached per wine and model version, and capped
+  at 60 new ones per hour. A typical explanation is about 800 input and 120 output tokens.
+- The server's role may invoke only that model.
+
 ## Roadmap
-1. A quarterly SageMaker Processing job to retrain the models when a new price list is published, and an S3-backed model
-   registry.
 2. More sources for more frequent data, such as other state-run retailers or retailer product pages that allow crawling.
 3. Bedrock summaries that explain in plain English why a price is likely to move, served as another API endpoint.

@@ -1,0 +1,3 @@
+# thepriceofwine.com (bare domain) -> the site on AWS. Netlify DNS can't point the apex at CloudFront
+# (no ALIAS records), so this tiny Netlify site serves the apex and redirects every path.
+/*  https://www.thepriceofwine.com/:splat  301!

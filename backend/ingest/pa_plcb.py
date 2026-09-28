@@ -19,16 +19,16 @@ import datetime as dt
 import re
 import sys
 import time
-import urllib.request
 from pathlib import Path
 
 import pypdfium2 as pdfium
+
+from ingest.http import fetch
 
 ROOT = Path(__file__).resolve().parents[2]
 RAW = ROOT / "data" / "raw" / "pa_plcb"
 OUT = ROOT / "data" / "processed" / "pa_plcb_prices.csv"
 INDEX_URL = "https://www.pa.gov/en/agencies/lcb/about-us/reports-and-publications/quarterly-price-listing.html"
-USER_AGENT = "Mozilla/5.0 (compatible; wine-price-tracker/0.1; research)"
 
 MONEY = r"\$([\d,]+\.\d{2})"
 DATE = r"(\d{1,2}/\d{1,2}/\d{2,4})"
@@ -44,8 +44,7 @@ FIELDS = ["report_date", "code", "description", "vintage", "size", "regular_pric
 
 
 def report_urls() -> list[str]:
-    req = urllib.request.Request(INDEX_URL, headers={"User-Agent": USER_AGENT})
-    html = urllib.request.urlopen(req, timeout=60).read().decode("utf-8", "replace")
+    html = fetch(INDEX_URL, timeout=60).decode("utf-8", "replace")
     urls = {u.replace("http://", "https://") for u in re.findall(r"https?://[^\"']*CRO000002_Report_\d{8}\.pdf", html)}
     return sorted(urls)
 
@@ -57,8 +56,7 @@ def download(delay_s: float = 5.0) -> list[Path]:
         dest = RAW / url.rsplit("/", 1)[1]
         if dest.exists() and dest.read_bytes()[:4] == b"%PDF":
             continue
-        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-        dest.write_bytes(urllib.request.urlopen(req, timeout=180).read())
+        dest.write_bytes(fetch(url, timeout=180))
         fetched.append(dest)
         time.sleep(delay_s)
     return fetched

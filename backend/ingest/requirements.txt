@@ -1,1 +1,3 @@
 pypdfium2
+openpyxl
+xlrd

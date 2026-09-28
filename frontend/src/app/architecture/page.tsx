@@ -100,7 +100,7 @@ function Diagram() {
       <rect x={6} y={6} width={1108} height={338} rx={16} fill="var(--surface-2)" />
       <rect x={6} y={356} width={1108} height={156} rx={16} fill="var(--surface-2)" />
       <text x={20} y={30} fontSize={11} fontWeight={700} letterSpacing="0.12em" fill="var(--gold)">
-        OFFLINE · QUARTERLY REFRESH (refresh.sh)
+        OFFLINE · QUARTERLY REFRESH (EventBridge Scheduler → refresh-aws.sh)
       </text>
       <text x={20} y={380} fontSize={11} fontWeight={700} letterSpacing="0.12em" fill="var(--gold)">
         ONLINE · EVERY REQUEST
@@ -142,12 +142,12 @@ function Diagram() {
 
       {/* training */}
       <Box x={COL.ml} y={74} w={200} h={64} title="Export" lines={["training CSV + context tables"]} />
-      <Box x={COL.ml} y={154} w={200} h={64} title="Train & evaluate" lines={["price-change · next-vintage ·", "fair-price · ablation"]} />
+      <Box x={COL.ml} y={154} w={200} h={64} title="Train on SageMaker" lines={["price-change · next-vintage ·", "fair-price (Processing job)"]} />
       <Box x={COL.ml} y={234} w={200} h={64} dashed accent title="wineprice package" lines={["shared features & models"]} />
 
       {/* registry and load-back */}
       <Box x={COL.reg} y={74} w={160} h={80} title="Load results" lines={["forecasts, outlooks,", "fair prices, metrics"]} />
-      <Box x={COL.reg} y={184} w={160} h={114} title="Model registry" lines={["versioned artifacts", "(local folder; S3 on AWS)", "one active version"]} />
+      <Box x={COL.reg} y={184} w={160} h={114} title="Model registry" lines={["versioned artifacts", "in S3", "one active version"]} />
 
       {/* offline arrows */}
       <Arrow d="M200 106 H240" />
@@ -166,7 +166,7 @@ function Diagram() {
       {/* online */}
       <Box x={COL.src} y={396} w={180} h={96} title="Browser" lines={["wine lists, charts,", "what-if panel"]} />
       <Box x={COL.ing} y={396} w={200} h={96} title="Next.js frontend" lines={["server-rendered pages", "/api/predict proxy for", "what-if requests"]} />
-      <Box x={COL.db} y={396} w={180} h={96} accent title="FastAPI model service" lines={["data endpoints", "live & what-if predictions", "OpenAPI docs at /docs"]} />
+      <Box x={COL.db} y={396} w={180} h={96} accent title="FastAPI model service" lines={["data endpoints, OpenAPI docs", "live & what-if predictions", "explanations (Bedrock)"]} />
       <Box x={COL.reg} y={396} w={160} h={96} title="Active model" lines={["held in memory,", "hot-swapped when a new", "version is activated"]} />
 
       <Arrow d="M200 444 H240" label="HTTPS" lx={220} ly={436} />
@@ -183,11 +183,11 @@ const AWS = [
   ["Website + model service", "Live", "One EC2 t4g.small (Ubuntu, arm64): nginx routes / to Next.js and /api/v1 to FastAPI"],
   ["HTTPS and caching", "Live", "CloudFront in front; the server only accepts traffic from CloudFront, and has no SSH"],
   ["Database", "Live", "PostgreSQL on the same instance, restored from a dump at each deploy; nightly backups to S3"],
-  ["Model registry", "Live", "The active model ships with each deploy as a CDK asset (S3-backed registry planned)"],
   ["Infrastructure", "Live", "AWS CDK (Python): every deploy rebuilds the server from source, reproducibly"],
   ["Cost guardrail", "Live", "AWS Budgets alerts at $5 and $20 a month"],
-  ["Quarterly training", "Planned", "SageMaker Processing job, scheduled each quarter"],
-  ["Plain-English explanations", "Planned", "Amazon Bedrock (Claude Haiku), generated per wine on demand and cached"],
+  ["Quarterly training", "Live", "EventBridge Scheduler -> SSM Run Command on the server -> SageMaker Processing job (ml.t3.xlarge) trains all three models"],
+  ["Model registry", "Live", "Trained models are published to S3 (registry/<version>/) and hot-swapped by the API"],
+  ["Plain-English explanations", "Live", "Amazon Bedrock (Amazon Nova Lite), generated per wine on request, cached and rate-limited"],
 ];
 
 export default function ArchitecturePage() {

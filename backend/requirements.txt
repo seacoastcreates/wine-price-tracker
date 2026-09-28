@@ -3,4 +3,5 @@ uvicorn[standard]==0.32.*
 sqlalchemy==2.0.*
 psycopg[binary]==3.2.*
 mangum==0.19.*
+boto3>=1.40
 -e ../ml

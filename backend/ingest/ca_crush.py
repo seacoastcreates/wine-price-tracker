@@ -14,7 +14,6 @@ import re
 import sys
 import time
 import urllib.parse
-import urllib.request
 import warnings
 import zipfile
 from pathlib import Path
@@ -22,12 +21,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from ingest.http import fetch
+
 ROOT = Path(__file__).resolve().parents[2]
 RAW = ROOT / "data" / "raw" / "ca_crush"
 OUT = ROOT / "data" / "processed" / "ca_supply.csv"
 INDEX = ("https://www.nass.usda.gov/Statistics_by_State/California/Publications/Specialty_and_Other_Releases/"
          "Grapes/Crush/Reports/index.php")
-USER_AGENT = "Mozilla/5.0 (compatible; wine-price-tracker/0.1; research)"
 FIRST_CROP = 2009
 
 # Our growing regions -> grape pricing district ("state" = statewide total).
@@ -39,8 +39,7 @@ DISTRICTS = {
 
 def download(delay_s: float = 3.0) -> None:
     RAW.mkdir(parents=True, exist_ok=True)
-    req = urllib.request.Request(INDEX, headers={"User-Agent": USER_AGENT})
-    html = urllib.request.urlopen(req, timeout=60).read().decode("utf-8", "replace")
+    html = fetch(INDEX, timeout=60).decode("utf-8", "replace")
     links = sorted(set(re.findall(r'href="(\.\./Final/(\d{4})/[^"]+\.zip)"', html)))
     for href, folder in links:
         if int(folder) < FIRST_CROP:
@@ -49,8 +48,7 @@ def download(delay_s: float = 3.0) -> None:
         if dest.exists():
             continue
         url = urllib.parse.urljoin(INDEX, urllib.parse.quote(href, safe="/.:"))
-        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-        dest.write_bytes(urllib.request.urlopen(req, timeout=180).read())
+        dest.write_bytes(fetch(url, timeout=180))
         print(f"downloaded {dest.name}")
         time.sleep(delay_s)
 

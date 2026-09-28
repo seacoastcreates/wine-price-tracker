@@ -4,13 +4,14 @@ from contextlib import asynccontextmanager
 from datetime import date
 from typing import Literal
 
+from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from wineprice.windows import drinking_window
 
-from app import inference
+from app import explain, inference
 from app.db import query
 
 log = logging.getLogger(__name__)
@@ -343,6 +344,44 @@ def predict_live(slug: str):
 def predict_scenario(slug: str, scenario: inference.Scenario):
     """What-if: change today's list price or promotion and see how the forecast responds."""
     return run_prediction(slug, scenario)
+
+
+class Explanation(BaseModel):
+    text: str
+    model_id: str
+    model_version: str
+    created_at: str
+    cached: bool
+
+
+@app.get("/wines/{slug}/explanation", response_model=Explanation)
+def get_explanation(slug: str):
+    """A previously generated explanation for this wine and the active model, if one exists."""
+    try:
+        hit = explain.get(slug)
+    except KeyError as e:
+        raise HTTPException(404, "Wine not found") from e
+    except explain.NoActiveModel as e:
+        raise HTTPException(503, str(e)) from e
+    if hit is None:
+        raise HTTPException(404, "No explanation yet")
+    return hit
+
+
+@app.post("/wines/{slug}/explanation", response_model=Explanation)
+def create_explanation(slug: str):
+    """Explain this wine's outlook in plain English (Amazon Nova on Amazon Bedrock); cached per model version."""
+    try:
+        return explain.generate(slug)
+    except KeyError as e:
+        raise HTTPException(404, "Wine not found") from e
+    except explain.NoActiveModel as e:
+        raise HTTPException(503, str(e)) from e
+    except explain.RateLimited as e:
+        raise HTTPException(429, str(e)) from e
+    except (ClientError, BotoCoreError) as e:
+        log.exception("Bedrock call failed")
+        raise HTTPException(502, "The explanation service is unavailable right now") from e
 
 
 @app.get("/model", response_model=ModelInfo)

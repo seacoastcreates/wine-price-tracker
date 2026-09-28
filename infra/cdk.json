@@ -1,4 +1,16 @@
 {
   "app": ".venv/bin/python app.py",
-  "watch": { "include": ["**"], "exclude": ["cdk.out", ".venv", "**/__pycache__"] }
+  "watch": {
+    "include": [
+      "**"
+    ],
+    "exclude": [
+      "cdk.out",
+      ".venv",
+      "**/__pycache__"
+    ]
+  },
+  "context": {
+    "site_cert_arn": "arn:aws:acm:us-east-1:699191579533:certificate/5c65df01-a125-429d-9983-c4cbd63f48e7"
+  }
 }

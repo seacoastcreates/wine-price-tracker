@@ -16,12 +16,12 @@ import re
 import sys
 import time
 import urllib.parse
-import urllib.request
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
+from ingest.http import fetch
 from ingest.regions import REGIONS
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -50,8 +50,7 @@ def download(delay_s: float = 1.0) -> None:
             continue
         params = {"parameters": ",".join(DAILY), "community": "AG", "latitude": lat, "longitude": lon,
                   "start": START, "end": end.strftime("%Y%m%d"), "format": "JSON"}
-        with urllib.request.urlopen(f"{API}?{urllib.parse.urlencode(params)}", timeout=180) as r:
-            data = json.load(r)["properties"]["parameter"]
+        data = json.loads(fetch(f"{API}?{urllib.parse.urlencode(params)}", timeout=180))["properties"]["parameter"]
         df = pd.DataFrame({DAILY[k]: pd.Series(v) for k, v in data.items()}).replace(-999.0, np.nan)
         df.index = pd.to_datetime(df.index, format="%Y%m%d")
         df.rename_axis("date").reset_index().assign(date=lambda d: d["date"].dt.date).to_csv(dest, index=False)

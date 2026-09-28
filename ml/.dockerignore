@@ -1,0 +1,6 @@
+data
+artifacts
+registry
+**/__pycache__
+*.egg-info
+Dockerfile

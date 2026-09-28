@@ -44,7 +44,9 @@ def export(out_csv: str) -> None:
     print(f"Exported {len(df)} rows for {df['wine_id'].nunique()} wines (+ context tables) to {out_dir}")
 
 
-def load(artifacts_dir: str) -> None:
+def load(artifacts_dir: str, artifact_uri: str | None = None) -> None:
+    """Register a trained model and load its outputs. With `artifact_uri` (e.g. an s3:// registry path)
+    the artifact already lives there; otherwise it is copied into the local registry folder."""
     d = Path(artifacts_dir)
     metrics = json.loads((d / "metrics.json").read_text())
     # Optional extras produced by ablation.py and train_vintage.py.
@@ -56,9 +58,10 @@ def load(artifacts_dir: str) -> None:
     outlook = pd.read_csv(d / "vintage_outlook.csv") if (d / "vintage_outlook.csv").exists() else None
     fair = pd.read_csv(d / "fair_prices.csv") if (d / "fair_prices.csv").exists() else None
     version = metrics["model_version"]
-    dest = REGISTRY / version
-    shutil.copytree(d, dest, dirs_exist_ok=True)
-    artifact_uri = str((dest / "model.joblib").resolve())
+    if artifact_uri is None:
+        dest = REGISTRY / version
+        shutil.copytree(d, dest, dirs_exist_ok=True)
+        artifact_uri = str((dest / "model.joblib").resolve())
     with get_engine().begin() as conn:
         conn.execute(text("UPDATE model_runs SET is_active = FALSE WHERE is_active"))
         conn.execute(

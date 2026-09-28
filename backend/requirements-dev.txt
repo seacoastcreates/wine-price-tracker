@@ -1,2 +1,4 @@
 pytest
 httpx
+# local development only: credentials from `aws login` need the CRT extra
+botocore[crt]

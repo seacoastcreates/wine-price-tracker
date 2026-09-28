@@ -3,8 +3,9 @@ name = "wineprice"
 version = "0.1.0"
 description = "Feature engineering, models, and inference for wine list-price forecasting"
 requires-python = ">=3.11"
-# Training (SageMaker) and serving (API) must use the same scikit-learn version to load the artifact.
-dependencies = ["pandas>=2.2", "numpy<2", "scikit-learn==1.9.1", "joblib>=1.4"]
+# Exact pins: model artifacts are pickled (including pandas tables inside them), so the SageMaker training
+# container and the API server must run identical versions to load them.
+dependencies = ["pandas==3.0.6", "numpy==1.26.4", "scikit-learn==1.9.1", "scipy==1.17.1", "joblib==1.6.0"]
 
 [build-system]
 requires = ["setuptools>=68"]

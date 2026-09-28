@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { api, pct, quarterLabel, usd, wineTitle } from "@/lib/api";
 import { Chance, Delta, ShelfPrice, SourceNote, StatTile } from "@/components/ui";
 import PriceChart from "@/components/PriceChart";
+import Explain from "@/components/Explain";
 import WhatIf from "@/components/WhatIf";
 
 export default async function WinePage({ params }: PageProps<"/wines/[slug]">) {
@@ -137,6 +138,8 @@ export default async function WinePage({ params }: PageProps<"/wines/[slug]">) {
           )}
         </section>
       )}
+
+      {wine.is_active && points.length > 0 && <Explain slug={wine.slug} />}
 
       {wine.is_active && wine.regular_price != null && points.length > 0 && (
         <WhatIf slug={wine.slug} listPrice={wine.regular_price} promoType={wine.promo_type} />

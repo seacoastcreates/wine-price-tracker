@@ -1,0 +1,61 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "BedrockNovaForExplanations",
+      "Effect": "Allow",
+      "Action": ["bedrock:InvokeModel", "bedrock:GetInferenceProfile"],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1:699191579533:inference-profile/us.amazon.nova-lite-v1:0",
+        "arn:aws:bedrock:*::foundation-model/amazon.nova-lite-v1:0"
+      ]
+    },
+    {
+      "Sid": "BedrockReadCatalog",
+      "Effect": "Allow",
+      "Action": ["bedrock:ListFoundationModels", "bedrock:ListInferenceProfiles"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "WatchSageMakerProcessingJobs",
+      "Effect": "Allow",
+      "Action": ["sagemaker:DescribeProcessingJob", "sagemaker:ListProcessingJobs", "sagemaker:StopProcessingJob"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ReadSageMakerJobLogs",
+      "Effect": "Allow",
+      "Action": ["logs:DescribeLogStreams", "logs:GetLogEvents", "logs:FilterLogEvents"],
+      "Resource": "arn:aws:logs:us-east-1:699191579533:log-group:/aws/sagemaker/ProcessingJobs:*"
+    },
+    {
+      "Sid": "RunCommandsOnCellarServer",
+      "Effect": "Allow",
+      "Action": "ssm:SendCommand",
+      "Resource": [
+        "arn:aws:ec2:us-east-1:699191579533:instance/*",
+        "arn:aws:ssm:us-east-1::document/AWS-RunShellScript"
+      ],
+      "Condition": {"StringEqualsIfExists": {"ssm:resourceTag/project": "cellar-index"}}
+    },
+    {
+      "Sid": "ReadCommandResultsAndInstances",
+      "Effect": "Allow",
+      "Action": ["ssm:GetCommandInvocation", "ssm:ListCommandInvocations", "ssm:DescribeInstanceInformation",
+                 "ec2:DescribeInstances"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ReadCellarStack",
+      "Effect": "Allow",
+      "Action": ["cloudformation:DescribeStacks", "cloudformation:DescribeStackEvents"],
+      "Resource": "arn:aws:cloudformation:us-east-1:699191579533:stack/CellarIndex/*"
+    },
+    {
+      "Sid": "ReadCellarBuckets",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket", "s3:GetObject"],
+      "Resource": ["arn:aws:s3:::cellarindex-*", "arn:aws:s3:::cellarindex-*/*"]
+    }
+  ]
+}
